@@ -1,0 +1,5 @@
+# mico orchestrator working dir (plans, scratch)
+.mico/
+
+# macOS
+.DS_Store
