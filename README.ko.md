@@ -58,11 +58,16 @@ mico --help                   # 전체 옵션
 (AGENTS.md·docs/·README)의 충돌은 수정 없이 요약으로 리포트한다. 멱등(idempotent)하며,
 끝난 뒤 `jq`가 없으면 설치를 권고한다.
 
-오케스트레이터는 Edit/Write/NotebookEdit이 도구 수준에서 비활성화되어 분석·계획·위임만
-수행한다 (`prompts/orchestrator-prompt.md`의 라우팅 테이블 참고).
+오케스트레이터는 plan-only다: 가드 훅이 비(非)마크다운 파일에 대한 Edit/Write/NotebookEdit을
+막으므로, 코드는 분석·계획·위임만 한다 (`prompts/orchestrator-prompt.md`의 라우팅 테이블 참고).
+단, 어떤 `.md` 파일이든 직접 편집할 수 있고, 안전한 git 일부
+(status/diff/log/add/commit/stash/fetch/pull/...)는 프롬프트 없이 바로 실행한다.
+비마크다운 코드 편집과 파괴적/외부로 나가는 git(push, reset --hard, force-push, rebase)은
+여전히 서브에이전트에 위임한다 (공개 `git push`는 하니스가 추가로 게이트한다).
 
-단, `<project>/.mico/plans/<topic>.md` 플랜 문서와 오케스트레이터 자신의 메모리 문서
-(`~/.claude/projects/<project>/memory/`)는 가드 예외로 직접 Write/Edit할 수 있다. 플랜
+플랜·메모리 문서도 그 마크다운의 한 사례일 뿐이다: 오케스트레이터는
+`<project>/.mico/plans/<topic>.md` 플랜 문서와 자신의 메모리 문서
+(`~/.claude/projects/<project>/memory/`)를 직접 Write/Edit할 수 있다. 플랜
 컨벤션은 최소 frontmatter(`goal`/`status`/`created`) + 체크 가능한 `## Steps`이며, 루트
 디렉터리에는 진행 중인 플랜만 두고 끝난 플랜은 `.mico/plans/archive/`로 옮긴다 — 따라서
 디렉터리 목록 자체가 활성 플랜 인덱스다 (INDEX 파일도 grep도 필요 없음). 자세한 내용은

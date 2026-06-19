@@ -12,12 +12,14 @@
 # usable discriminator — "agent_id" is. (Verified by clean-room experiment.)
 #
 # Exemption: the main orchestrator IS allowed to Write/Edit (a) plan documents
-# under any ".mico/plans/" directory and (b) memory documents under
-# "~/.claude/projects/<project>/memory/". The payload carries a
-# "tool_input.file_path" (and "cwd" to resolve relative paths). We resolve the
-# target lexically — make it absolute, reject any ".." traversal, then match the
-# ".mico/plans/" or ".claude/projects/*/memory/" path SEGMENT. We match the
-# segment rather than anchoring to "$cwd" because the orchestrator's cwd is not
+# under any ".mico/plans/" directory, (b) memory documents under
+# "~/.claude/projects/<project>/memory/", and (c) ANY "*.md" file (markdown is
+# always editable directly — docs/READMEs/notes need no delegation). The payload
+# carries a "tool_input.file_path" (and "cwd" to resolve relative paths). We
+# resolve the target lexically — make it absolute, reject any ".." traversal,
+# then match the ".mico/plans/" or ".claude/projects/*/memory/" path SEGMENT or
+# the ".md" suffix. We match the segment rather than anchoring to "$cwd" because
+# the orchestrator's cwd is not
 # always the project root (e.g. a subdir), which used to false-block legitimate
 # plan edits. The threat model is the model drifting from plan-only discipline,
 # not a hostile attacker, so pure-string normalization (no filesystem access,
@@ -49,6 +51,7 @@ if command -v jq >/dev/null 2>&1; then
         case "$abs" in
           */.mico/plans/*) exit 0 ;;                # plan doc -> allow
           */.claude/projects/*/memory/*) exit 0 ;;  # memory doc -> allow
+          *.md) exit 0 ;;                            # any markdown -> allow
         esac
         ;;
     esac

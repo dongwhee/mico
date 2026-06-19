@@ -234,8 +234,17 @@ fi
 # via --settings so it applies to THIS session only, never the user's global
 # ~/.claude/settings.json. --settings merges with the settings hierarchy, so the
 # user's own hooks/permissions are preserved.
+#
+# The session settings ALSO carry a safe-git allowlist so the orchestrator can run
+# basic read git plus add/commit/etc. without permission prompts. Only safe verbs
+# are allowed; destructive sub-flags of an allowed prefix are denied. branch/tag
+# prompt like other less-common git because prefix rules can't constrain their
+# long-form destructive flags (--delete, -M, -f). Destructive/outbound git (push,
+# reset, checkout, switch, restore, clean, rebase) is intentionally omitted so it
+# keeps prompting.
 guard="$repo/scripts/orchestrator-guard.sh"
 guard_hook="\"hooks\":{\"PreToolUse\":[{\"matcher\":\"Edit|Write|NotebookEdit\",\"hooks\":[{\"type\":\"command\",\"command\":\"$guard\"}]}]}"
+git_perms="\"permissions\":{\"allow\":[\"Bash(git status:*)\",\"Bash(git diff:*)\",\"Bash(git log:*)\",\"Bash(git show:*)\",\"Bash(git add:*)\",\"Bash(git commit:*)\",\"Bash(git stash:*)\",\"Bash(git fetch:*)\",\"Bash(git pull:*)\",\"Bash(git mv:*)\",\"Bash(git rev-parse:*)\",\"Bash(git ls-files:*)\",\"Bash(git blame:*)\"],\"deny\":[\"Bash(git stash drop:*)\",\"Bash(git stash clear:*)\"]}"
 
 # Detect caller overrides so we don't fight them.
 has_effort=false has_settings=false has_advisor=false
@@ -247,10 +256,10 @@ for a in "${args[@]+"${args[@]}"}"; do
   esac
 done
 
-# The plan-only guard hook is always injected. The advisor is set via the
-# --advisor flag below (not advisorModel here) so it survives even if the caller
-# passes their own --settings.
-mico_settings="{$guard_hook}"
+# The plan-only guard hook and safe-git allowlist are always injected. The advisor
+# is set via the --advisor flag below (not advisorModel here) so it survives even
+# if the caller passes their own --settings.
+mico_settings="{$guard_hook,$git_perms}"
 
 claude_args=(
   --model "$orch"

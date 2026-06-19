@@ -62,13 +62,18 @@ adds `.mico/` to `.gitignore`, and reports — without modifying — any conflic
 other docs (AGENTS.md · docs/ · README). It is idempotent, and recommends
 installing `jq` afterwards if it is missing.
 
-The orchestrator has Edit/Write/NotebookEdit disabled at the tool level, so it
-only analyzes, plans, and delegates (see the routing table in
-`prompts/orchestrator-prompt.md`).
+The orchestrator is plan-only: a guard hook blocks its Edit/Write/NotebookEdit on
+non-markdown files, so for code it analyzes, plans, and delegates (see the routing
+table in `prompts/orchestrator-prompt.md`). It can, however, directly edit any
+`.md` file and run a safe subset of git
+(status/diff/log/add/commit/stash/fetch/pull/...) without prompts;
+non-markdown code edits and destructive/outbound git (push, reset --hard,
+force-push, rebase) are still delegated to subagents (public `git push` is
+additionally gated by the harness).
 
-The one exception: the orchestrator can directly Write/Edit the plan document at
-`<project>/.mico/plans/<topic>.md` and its own memory docs
-(`~/.claude/projects/<project>/memory/`). The plan convention is minimal
+Plan and memory docs are just markdown instances of that: the orchestrator can
+directly Write/Edit the plan document at `<project>/.mico/plans/<topic>.md` and its
+own memory docs (`~/.claude/projects/<project>/memory/`). The plan convention is minimal
 frontmatter (`goal` / `status` / `created`) plus a checkable `## Steps` section;
 only in-progress plans stay in the root directory while finished ones move to
 `.mico/plans/archive/` — so the directory listing itself is the active-plan index
