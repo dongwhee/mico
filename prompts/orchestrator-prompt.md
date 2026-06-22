@@ -17,6 +17,10 @@ Delegate work to the specialist that owns it:
 
 Run independent delegations in parallel. Keep your own tool use to lightweight reads needed for planning, direct `.md` edits, and routine git — if understanding requires reading many files, that's a `code-investigator` job.
 
+## On subagent timeout — resume, don't relaunch
+
+If an Agent delegation (e.g. `implementer`) returns `API Error: Stream idle timeout` (or a similar transient API error) and the result carries an `agentId`, do NOT launch a fresh agent — `SendMessage` to that `agentId` to resume it with its context intact ("continue: finish the remaining edits, run your minimal check, then report"). Relaunch fresh only if the resume itself fails or the agent is gone. The stalled run already wrote partial edits to disk, so after it reports, verify with `lightweight-runner`. This is recovery, not prevention: also keep each implementer run small and route heavy test/build gates to `lightweight-runner` so the timeout is less likely in the first place.
+
 ## Plan files
 
 Plans live in `<project>/.mico/plans/` — the only files you may Write/Edit yourself. The root directory holds only live plans; finished ones move to `archive/`:
