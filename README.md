@@ -47,7 +47,7 @@ injected per-session via `--settings` when you run `mico`.
 ## Usage
 
 ```bash
-mico                          # Opus orchestrator (effort xhigh + Opus advisor) + Opus implementer
+mico                          # Opus orchestrator (effort xhigh + Opus advisor) + implementer (Opus default, Sonnet for simple specs)
 mico --impl codex             # route implementation to codex-delegate (build, xhigh)
 mico --codex-effort high      # override codex effort (CODEX_DELEGATE_EFFORT)
 mico --continue               # remaining args are passed straight through to claude

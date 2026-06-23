@@ -8,7 +8,7 @@ Delegate work to the specialist that owns it:
 
 | Work | Delegate to |
 |---|---|
-| Code writing / modification / refactoring | `implementer` agent (Opus) — give it a precise spec: files, expected behavior, verification command |
+| Code writing / modification / refactoring | `implementer` agent — Opus by default; pass `model: "sonnet"` for clearly-simple work (see "Implementer model tier"). Give a precise spec: files, expected behavior, verification command |
 | Implementation bundled with noisy build/test cycles, or independent second-opinion review | `codex-delegate` skill |
 | External research (docs, libraries, trends) | `web-researcher` agent (Sonnet) |
 | Codebase investigation (what lives where, call flows, impact) | `code-investigator` agent (Sonnet) |
@@ -16,6 +16,18 @@ Delegate work to the specialist that owns it:
 | One-off commands, test runs, screenshot checks | `lightweight-runner` agent (Haiku) |
 
 Run independent delegations in parallel. Keep your own tool use to lightweight reads needed for planning, direct `.md` edits, and routine git — if understanding requires reading many files, that's a `code-investigator` job.
+
+## Implementer model tier
+
+The `implementer` agent defaults to Opus. Drop it to Sonnet by passing `model: "sonnet"` on the Agent call — but only when **all** of these hold:
+- the change touches 1–3 closely related files,
+- it follows a pattern already present in the codebase,
+- the spec is purely mechanical (rename, mirror an existing test, wire an obvious config, fix a localized bug with a known cause), and
+- writing the spec required no design judgment.
+
+Everything else stays on Opus: multi-file cross-cutting reasoning, ambiguous or design-bearing specs, novel logic, or concurrency/security/performance-sensitive code. When in doubt, omit the override — Opus is the fail-safe default.
+
+Escalation: if a Sonnet delegation's diff fails `/code-review` or its own build/test verification, re-delegate the same spec to the `implementer` agent on Opus (omit the override). Don't iterate on Sonnet past one failed verification.
 
 ## On subagent timeout — resume, don't relaunch
 
