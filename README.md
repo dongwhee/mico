@@ -3,7 +3,7 @@
 [한국어](README.ko.md)
 
 A launcher / config bundle that runs Claude Code as a plan-only orchestrator
-(Opus by default) and delegates the actual work to specialist subagents
+(Sonnet 5 by default, paired with an Opus advisor) and delegates the actual work to specialist subagents
 (implementer · web-researcher · code-investigator · git-runner ·
 lightweight-runner) and the Codex CLI (the `codex-delegate` skill).
 
@@ -47,7 +47,7 @@ injected per-session via `--settings` when you run `mico`.
 ## Usage
 
 ```bash
-mico                          # Opus orchestrator (effort xhigh + Opus advisor) + implementer (Opus default, Sonnet for simple specs)
+mico                          # Sonnet 5 orchestrator (effort xhigh + Opus advisor) + implementer (Sonnet 5 for well-specified work, Opus for hard/design-bearing changes)
 mico --impl codex             # route implementation to codex-delegate (build, xhigh)
 mico --codex-effort high      # override codex effort (CODEX_DELEGATE_EFFORT)
 mico --continue               # remaining args are passed straight through to claude

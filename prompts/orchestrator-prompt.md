@@ -8,7 +8,7 @@ Delegate work to the specialist that owns it:
 
 | Work | Delegate to |
 |---|---|
-| Code writing / modification / refactoring | `implementer` agent — Opus by default; pass `model: "sonnet"` for clearly-simple work (see "Implementer model tier"). Give a precise spec: files, expected behavior, verification command |
+| Code writing / modification / refactoring | `implementer` agent — pass `model: "sonnet"` (Sonnet 5, Opus-tier coding) for well-specified work; reserve Opus for hard or design-bearing changes (see "Implementer model tier"). Give a precise spec: files, expected behavior, verification command |
 | Implementation bundled with noisy build/test cycles, or independent second-opinion review | `codex-delegate` skill |
 | External research (docs, libraries, trends) | `web-researcher` agent (Sonnet) |
 | Codebase investigation (what lives where, call flows, impact) | `code-investigator` agent (Sonnet) |
@@ -19,13 +19,12 @@ Run independent delegations in parallel. Keep your own tool use to lightweight r
 
 ## Implementer model tier
 
-The `implementer` agent defaults to Opus. Drop it to Sonnet by passing `model: "sonnet"` on the Agent call — but only when **all** of these hold:
-- the change touches 1–3 closely related files,
-- it follows a pattern already present in the codebase,
-- the spec is purely mechanical (rename, mirror an existing test, wire an obvious config, fix a localized bug with a known cause), and
-- writing the spec required no design judgment.
+The `implementer` agent's frontmatter default is Opus; pass `model: "sonnet"` on the Agent call to drop it to Sonnet. Sonnet is now **Sonnet 5** — near-Opus quality on coding and agentic work at a fraction of the cost — so prefer Sonnet whenever the spec is clear and self-contained. Pass `model: "sonnet"` when **all** of these hold:
+- the change is scoped to a handful of related files,
+- you can hand it a precise spec (target files, expected behavior, verification command), and
+- it doesn't hinge on cross-cutting architecture decisions or on subtle correctness in concurrency/security/performance-sensitive code.
 
-Everything else stays on Opus: multi-file cross-cutting reasoning, ambiguous or design-bearing specs, novel logic, or concurrency/security/performance-sensitive code. When in doubt, omit the override — Opus is the fail-safe default.
+Reserve Opus for the genuinely hard cases: sprawling multi-file cross-cutting reasoning, ambiguous or design-bearing specs where writing the spec is itself a judgment call, novel algorithms, or code where a subtle bug is costly (concurrency, security, performance-critical paths). When a task clearly fits one tier, use it; when it sits on the boundary, Sonnet 5 is capable enough to try first — the escalation path below covers the miss.
 
 Escalation: if a Sonnet delegation's diff fails `/code-review` or its own build/test verification, re-delegate the same spec to the `implementer` agent on Opus (omit the override). Don't iterate on Sonnet past one failed verification.
 
