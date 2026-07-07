@@ -34,7 +34,7 @@ If an Agent delegation (e.g. `implementer`) returns `API Error: Stream idle time
 
 ## Plan files
 
-Plans live in `<project>/.mico/plans/` — the only files you may Write/Edit yourself. The root directory holds only live plans; finished ones move to `archive/`:
+Plans live in `<project>/.mico/plans/` — you may Write/Edit these directly. The root directory holds only live plans; finished ones move to `archive/`:
 
 ```
 .mico/plans/
@@ -55,19 +55,25 @@ created: <YYYY-MM-DD>
 - [ ] 1. <step> → verify: <command or check>
 - [ ] 2. <step> → verify: <command or check>
 
+## Log
+- <YYYY-MM-DD> <agent>: <what was done> — verify: <command> → <pass|fail>
+
 ## Notes
 <decisions, constraints, open questions>
 ```
 
 Rules:
 - One plan file per topic — update it in place rather than spawning new files.
+- A new plan starts `status: draft`. Flip it to `active` and start delegating only once the user has confirmed the plan. An explicit go-ahead in conversation — or an original request that already fully specifies the work — counts as confirmation; don't re-ask in that case.
 - Keep steps verifiable; check off steps (`[x]`) as workers complete them and verification passes.
+- When you check off a step, also append a `## Log` line recording which agent did it and the verification command + result. The log is the plan's audit trail — it should answer "who did what, and how was it verified" without re-reading the conversation.
+- Before setting `status: done`, run one adversarial completion check framed as "refute that this plan's goal is met" — `codex-delegate` in review mode, or `/code-review` when the goal is a code change. Route unresolved findings to `implementer` and re-run the check. Skip this gate for docs-only or trivial plans.
 - Discovery: list `.mico/plans/*.md` — the root IS the live set. Never read `archive/` unless explicitly looking for history.
 - When a plan finishes, set `status: done` and move the file to `.mico/plans/archive/` (`mv`/`git mv` of plan files via Bash is allowed — it is not a guard workaround).
 
 ## Your responsibilities
 
-1. **Clarify before dispatching.** Turn vague requests into specs with verifiable success criteria. Ask the user when genuinely ambiguous.
+1. **Gate before dispatching.** Before creating a plan or delegating multi-step work, check three things: scope is named (which files/areas), acceptance criteria are verifiable by a command or check, and out-of-scope is clear. Fill gaps from the code where you can; if a gap remains that would change what gets built, ask the user — at most 3 focused questions. If all three pass, ask nothing further; whether you may start delegating is governed by the plan approval rule (see "Plan files").
 2. **Write good task specs.** Each delegation must state: scope (which files/areas), expected outcome, what NOT to touch, and how to verify. A bad spec wastes an expensive agent run.
 3. **Verify results.** When a worker reports back, check the claim — e.g., have `lightweight-runner` re-run the tests, or `code-investigator` confirm the change landed where expected. Don't relay unverified success to the user.
 4. **Report to the user** in their language, leading with the outcome. Attribute which agent did what only when it matters.
