@@ -10,7 +10,8 @@
 #   update     git pull the repo (symlinks pick up changes automatically)
 #   setup      run headless Claude in the CURRENT project to align its docs with
 #              mico conventions (CLAUDE.md plan-distinction note + .gitignore .mico/)
-#              and report other-doc conflicts; then recommend installing jq if missing
+#              and report other-doc conflicts; optionally set up code-review-graph;
+#              then recommend installing jq if missing
 #
 # Usage: mico [--orch fable|opus|sonnet] [--impl opus|codex] [--codex-effort minimal|low|medium|high|xhigh] [claude args...]
 #   --orch          orchestrator model (default: sonnet). `opus` and `sonnet` add
@@ -93,6 +94,46 @@ cmd_setup() {
     echo "mico: setup prompt not found at $prompt" >&2
     exit 1
   fi
+  local crg_setup_ran=false
+  if [ -t 0 ]; then
+    local crg_answer=""
+    printf 'mico: set up code-review-graph (local code index MCP) for this project? [y/N] ' >&2
+    read -r crg_answer
+    case "$crg_answer" in
+      y|Y)
+        if ! command -v code-review-graph >/dev/null 2>&1; then
+          local crg_installed=false
+          if command -v uv >/dev/null 2>&1 && uv tool install code-review-graph; then
+            crg_installed=true
+          elif command -v pipx >/dev/null 2>&1 && pipx install code-review-graph; then
+            crg_installed=true
+          elif command -v pip >/dev/null 2>&1 && pip install --user code-review-graph; then
+            crg_installed=true
+          fi
+          if ! $crg_installed || ! command -v code-review-graph >/dev/null 2>&1; then
+            echo "mico: could not install code-review-graph; install it manually and re-run setup if wanted." >&2
+          fi
+        fi
+        if command -v code-review-graph >/dev/null 2>&1; then
+          crg_setup_ran=true
+          if ! code-review-graph install --platform claude-code; then
+            echo "mico: code-review-graph install --platform claude-code failed" >&2
+          fi
+          if ! code-review-graph build; then
+            echo "mico: code-review-graph build failed" >&2
+          fi
+          if [ -f .gitignore ]; then
+            if ! grep -Fxq '.code-review-graph/' .gitignore; then
+              [ -s .gitignore ] && [ "$(tail -c 1 .gitignore)" != "" ] && echo >>.gitignore
+              echo ".code-review-graph/" >>.gitignore
+            fi
+          else
+            echo ".code-review-graph/" >.gitignore
+          fi
+        fi
+        ;;
+    esac
+  fi
   echo "mico: starting setup in $PWD; this may take a minute. Claude may be quiet while reading/updating docs..." >&2
   # --model opus: fable is currently blocked; opus is the standardized default.
   # acceptEdits + explicit --allowedTools so reads and the CLAUDE.md/.gitignore
@@ -132,6 +173,14 @@ cmd_setup() {
     echo "        macOS: brew install jq  |  Debian/Ubuntu: sudo apt install jq" >&2
     echo "        Fedora: sudo dnf install jq  (or use your package manager)" >&2
   fi
+  if $crg_setup_ran; then
+    echo >&2
+    echo "mico: NOTE — code-review-graph was set up for this project." >&2
+    echo "      On the next interactive claude/mico launch, the new project MCP" >&2
+    echo "      server will show as 'pending approval' and must be approved once." >&2
+    echo "      The index is not auto-updated; re-run 'code-review-graph update'" >&2
+    echo "      after significant changes." >&2
+  fi
   exit $rc
 }
 
@@ -152,7 +201,8 @@ Setup commands:
   update      git pull the repo (symlinks pick up changes automatically)
   setup       run headless Claude in the CURRENT project folder to align its docs
               with mico conventions (CLAUDE.md plan-distinction note + .gitignore
-              .mico/) and report other-doc conflicts; recommends jq if it is missing
+              .mico/) and report other-doc conflicts; optionally set up
+              code-review-graph; recommends jq if it is missing
 
 Launcher options:
   --orch fable|opus|sonnet
