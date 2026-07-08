@@ -3,3 +3,8 @@
 
 # macOS
 .DS_Store
+# Added by code-review-graph
+.code-review-graph/
+
+# subagent persistent memory (see agents/code-investigator.md memory: project)
+.claude/agent-memory/
