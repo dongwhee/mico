@@ -267,8 +267,15 @@ prompt_file=$base_prompt
 # to run when this is set, so a drifting orchestrator cannot invoke codex in a
 # non-codex session no matter how it phrases the command. Disable-marker
 # polarity (NOT an enable marker) so the script still works standalone outside
-# mico, where the variable is simply unset.
-[ "$impl" = codex ] || export MICO_CODEX_DISABLED=1
+# mico, where the variable is simply unset. Codex mode must actively unset it
+# rather than merely skip the export, since an inherited value (e.g. a nested
+# mico launched from inside a running mico session) would otherwise disable
+# codex in the very mode that asked for it.
+if [ "$impl" = codex ]; then
+  unset MICO_CODEX_DISABLED
+else
+  export MICO_CODEX_DISABLED=1
+fi
 case "$impl" in
   sonnet)
     : # base prompt already encodes Sonnet-first implementer tiering
