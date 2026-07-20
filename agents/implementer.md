@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Implementation specialist. All code writing/modification work — new features, bug fixes, refactoring — should be delegated here. Receives a clear spec from the orchestrator, implements it, verifies build/tests, and reports a concise change summary.
-model: opus
+model: sonnet
 permissionMode: acceptEdits
 ---
 

@@ -24,8 +24,23 @@
 
 set -uo pipefail
 
+# mico's codex opt-in-only gate. bin/mico exports MICO_CODEX_DISABLED in every
+# non-codex --impl mode. The check lives here rather than in a permission rule
+# because rules that constrain a command string are unreliable; this one holds
+# regardless of how the script was invoked. Unset outside mico, so standalone
+# use is unaffected.
+if [ -n "${MICO_CODEX_DISABLED:-}" ]; then
+  echo "codex-delegate: disabled in this session." >&2
+  echo "  mico routes implementation to Claude models unless you ask for codex." >&2
+  echo "  Rerun with: mico --impl codex" >&2
+  exit 3
+fi
+
 usage() {
-  sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'
+  # Print the header comment block (everything after the shebang up to the first
+  # non-comment line). Deliberately not a hardcoded line range — one of those
+  # silently started printing code when a block was inserted below the header.
+  awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
 }
 
 if [ "$#" -lt 4 ]; then

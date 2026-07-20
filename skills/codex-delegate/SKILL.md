@@ -1,10 +1,18 @@
 ---
 name: codex-delegate
-description: Delegate a self-contained unit of work (implement+build+test, or review) to `codex exec` so noisy logs stay out of Claude Code's context and only a small verdict file returns. Use when a task involves running builds/tests that emit lots of output, or when you want an independent second-opinion code review.
+description: Delegate a self-contained unit of work (implement+build+test, or review) to `codex exec` so noisy logs stay out of Claude Code's context and only a small verdict file returns. OPT-IN ONLY under mico — use it only in a session started with `mico --impl codex`, where the orchestrator prompt explicitly routes implementation here; in any other mico session the helper script hard-refuses to run. Outside mico, use it for builds/tests that emit lots of output or for an independent second-opinion review.
 user-invocable: true
 ---
 
 # Delegating to `codex exec`
+
+> **Opt-in only under mico.** `bin/mico` exports `MICO_CODEX_DISABLED=1` in every
+> non-codex `--impl` mode, and `codex-delegate.sh` exits immediately when it sees
+> that. So in a default mico session every path in this skill dead-ends — route
+> build/test work to the `implementer` (it verifies its own work) or
+> `lightweight-runner`, and route review to `code-investigator` on Opus. Only
+> `mico --impl codex` clears the gate. The variable is unset outside mico, so
+> standalone use is unaffected.
 
 Claude Code (CC) is the orchestrator; `codex exec` is an **isolated subcontractor**.
 Codex does the noisy work (writing code, building, testing, reviewing) inside its

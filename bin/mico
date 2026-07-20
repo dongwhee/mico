@@ -13,14 +13,15 @@
 #              and report other-doc conflicts; optionally set up code-review-graph;
 #              then recommend installing jq if missing
 #
-# Usage: mico [--orch fable|opus|sonnet] [--impl opus|codex] [--codex-effort minimal|low|medium|high|xhigh] [claude args...]
-#   --orch          orchestrator model (default: sonnet). `opus` and `sonnet` add
+# Usage: mico [--orch fable|opus|sonnet] [--impl sonnet|opus|codex] [--codex-effort minimal|low|medium|high|xhigh] [claude args...]
+#   --orch          orchestrator model (default: opus). `opus` and `sonnet` add
 #                   `--effort xhigh` (official rec for agentic/planning work).
 #                   The advisor defaults to the orch model (opus->opus, fable->fable)
 #                   EXCEPT `sonnet`, which pairs a Sonnet 5 executor with an Opus
 #                   advisor (a stronger advisor is always valid). Pass your own
 #                   --advisor to override.
-#   --impl          implementation backend (default: opus -> implementer agent;
+#   --impl          implementation backend (default: sonnet -> implementer agent
+#                   on Sonnet 5; opus -> implementer agent forced to Opus;
 #                   codex -> codex-delegate skill, build mode)
 #   --codex-effort  codex reasoning effort, exported as CODEX_DELEGATE_EFFORT
 #                   (default: xhigh when --impl codex; script default otherwise)
@@ -190,7 +191,7 @@ mico — launch Claude as a plan-only orchestrator.
 Implementation/research/investigation are delegated to specialist subagents.
 
 Usage:
-  mico [--orch fable|opus|sonnet] [--impl opus|codex] [--codex-effort LEVEL] [claude args...]
+  mico [--orch fable|opus|sonnet] [--impl sonnet|opus|codex] [--codex-effort LEVEL] [claude args...]
   mico install | uninstall | update | setup
   mico --help | -h
 
@@ -206,13 +207,14 @@ Setup commands:
 
 Launcher options:
   --orch fable|opus|sonnet
-              orchestrator model (default: sonnet). opus and sonnet add --effort
+              orchestrator model (default: opus). opus and sonnet add --effort
               xhigh (unless overridden). The advisor defaults to the orch model
               (opus->opus, fable->fable) EXCEPT sonnet, which pairs a Sonnet 5
               executor with an Opus advisor. Pass --advisor to override.
-  --impl opus|codex
-              implementation backend (default: opus -> implementer agent;
-              codex -> codex-delegate skill, build mode).
+  --impl sonnet|opus|codex
+              implementation backend (default: sonnet -> implementer agent on
+              Sonnet 5; opus -> implementer agent forced to Opus; codex ->
+              codex-delegate skill, build mode).
   --codex-effort minimal|low|medium|high|xhigh
               codex reasoning effort, exported as CODEX_DELEGATE_EFFORT
               (default: xhigh when --impl codex).
@@ -230,8 +232,8 @@ esac
 
 # ---- launcher ---------------------------------------------------------------
 
-orch=sonnet
-impl=opus
+orch=opus
+impl=sonnet
 codex_effort=""
 args=()
 while [ $# -gt 0 ]; do
@@ -249,8 +251,8 @@ case "$orch" in
   *) echo "mico: unknown --orch '$orch' (expected fable|opus|sonnet)" >&2; exit 2 ;;
 esac
 case "$impl" in
-  opus|codex) ;;
-  *) echo "mico: unknown --impl '$impl' (expected opus|codex)" >&2; exit 2 ;;
+  sonnet|opus|codex) ;;
+  *) echo "mico: unknown --impl '$impl' (expected sonnet|opus|codex)" >&2; exit 2 ;;
 esac
 if [ -n "$codex_effort" ]; then
   case "$codex_effort" in
@@ -261,12 +263,39 @@ fi
 
 base_prompt="$repo/prompts/orchestrator-prompt.md"
 prompt_file=$base_prompt
-if [ "$impl" = codex ]; then
-  : "${CODEX_DELEGATE_EFFORT:=xhigh}"
-  export CODEX_DELEGATE_EFFORT
-  prompt_file=$(mktemp -t mico-prompt.XXXXXX)
-  cat "$base_prompt" >"$prompt_file"
-  cat >>"$prompt_file" <<EOF
+# Hard gate for the codex opt-in-only policy: scripts/codex-delegate.sh refuses
+# to run when this is set, so a drifting orchestrator cannot invoke codex in a
+# non-codex session no matter how it phrases the command. Disable-marker
+# polarity (NOT an enable marker) so the script still works standalone outside
+# mico, where the variable is simply unset.
+[ "$impl" = codex ] || export MICO_CODEX_DISABLED=1
+case "$impl" in
+  sonnet)
+    : # base prompt already encodes Sonnet-first implementer tiering
+    ;;
+  opus)
+    prompt_file=$(mktemp -t mico-prompt.XXXXXX)
+    cat "$base_prompt" >"$prompt_file"
+    cat >>"$prompt_file" <<EOF
+
+## Session override: implementation model
+
+For THIS session, every delegation to the \`implementer\` agent must pass
+\`model: "opus"\` — including work that the "Implementer model tier" section would
+normally leave on the Sonnet default. That tiering and its Sonnet-to-Opus
+escalation path do not apply this session.
+
+This changes the implementer's MODEL ONLY — routing is otherwise unchanged, and
+the base prompt's codex opt-in-only rule still applies (this override does NOT
+grant use of the \`codex-delegate\` skill).
+EOF
+    ;;
+  codex)
+    : "${CODEX_DELEGATE_EFFORT:=xhigh}"
+    export CODEX_DELEGATE_EFFORT
+    prompt_file=$(mktemp -t mico-prompt.XXXXXX)
+    cat "$base_prompt" >"$prompt_file"
+    cat >>"$prompt_file" <<EOF
 
 ## Session override: implementation backend
 
@@ -276,9 +305,10 @@ CODEX_DELEGATE_EFFORT; do not set it yourself) instead of the \`implementer\` ag
 Codex tends to expand scope, so every spec you hand it must include:
 "Implement ONLY this spec. Do not expand scope or suggest extra tasks."
 If codex fails or the task needs surgical multi-file reasoning, fall back to the
-\`implementer\` agent (Opus).
+\`implementer\` agent with \`model: "opus"\`.
 EOF
-fi
+    ;;
+esac
 
 # Plan-only guard. A session deny (--disallowedTools) would strip Edit/Write from
 # the shared tool pool that subagents inherit, breaking delegation. Instead inject
