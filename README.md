@@ -3,8 +3,8 @@
 [한국어](README.ko.md)
 
 A launcher / config bundle that runs Claude Code as a plan-only orchestrator
-(Opus by default, paired with an Opus advisor) and delegates the actual work to specialist subagents
-(implementer · web-researcher · code-investigator · git-runner ·
+(Opus by default) and delegates the actual work to specialist subagents
+(implementer · advisor · web-researcher · code-investigator · git-runner ·
 lightweight-runner). Everything stays on Claude models by default; implementation
 can optionally be routed to the Codex CLI with `--impl codex` (the
 `codex-delegate` skill), and only then.
@@ -36,7 +36,7 @@ cd mico
 | Link | Target |
 |---|---|
 | `~/.local/bin/mico` | `bin/mico` |
-| `~/.claude/agents/*.md` (5 files) | `agents/` |
+| `~/.claude/agents/*.md` (6 files) | `agents/` |
 | `~/.claude/skills/codex-delegate` | `skills/codex-delegate/` |
 | `~/.claude/scripts/codex-delegate.sh` | `scripts/codex-delegate.sh` |
 | `~/.claude/scripts/orchestrator-guard.sh` | `scripts/orchestrator-guard.sh` |
@@ -49,8 +49,10 @@ injected per-session via `--settings` when you run `mico`.
 ## Usage
 
 ```bash
-mico                          # Opus orchestrator (effort xhigh + Opus advisor) + implementer on Sonnet 5
-mico --orch sonnet            # lighter orchestrator: Sonnet 5 executor + Opus advisor
+mico                          # Opus orchestrator (effort high) + implementer on Sonnet 5 + advisor agent on Opus xhigh
+mico --orch sonnet            # lighter orchestrator on Sonnet 5
+mico --advisor fable          # run the advisor agent on Fable 5 instead of Opus
+mico --effort xhigh           # raise the orchestrator itself back to xhigh
 mico --impl opus              # force every implementer delegation onto Opus
 mico --impl codex             # route implementation to codex-delegate (build, xhigh)
 mico --codex-effort high      # override codex effort (CODEX_DELEGATE_EFFORT)

@@ -13,13 +13,16 @@
 #              and report other-doc conflicts; optionally set up code-review-graph;
 #              then recommend installing jq if missing
 #
-# Usage: mico [--orch fable|opus|sonnet] [--impl sonnet|opus|codex] [--codex-effort minimal|low|medium|high|xhigh] [claude args...]
+# Usage: mico [--orch fable|opus|sonnet] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort minimal|low|medium|high|xhigh] [claude args...]
 #   --orch          orchestrator model (default: opus). `opus` and `sonnet` add
-#                   `--effort xhigh` (official rec for agentic/planning work).
-#                   The advisor defaults to the orch model (opus->opus, fable->fable)
-#                   EXCEPT `sonnet`, which pairs a Sonnet 5 executor with an Opus
-#                   advisor (a stronger advisor is always valid). Pass your own
-#                   --advisor to override.
+#                   `--effort high` — deep review is delegated to the xhigh
+#                   advisor agent, so the orchestrator trades a notch of
+#                   reasoning for lower latency. Restore with `--effort xhigh`.
+#   --advisor       advisor AGENT model (default: opus; `fable` raises it to
+#                   Fable 5). The advisor is a read-only subagent consulted at
+#                   decision points — mico does not use Claude Code's built-in
+#                   server-side advisor (blocking, uncached full-transcript
+#                   reread, inherited by every subagent).
 #   --impl          implementation backend (default: sonnet -> implementer agent
 #                   on Sonnet 5; opus -> implementer agent forced to Opus;
 #                   codex -> codex-delegate skill, build mode)
@@ -40,6 +43,7 @@ $HOME/.local/bin/mico|$repo/bin/mico
 $HOME/.claude/scripts/codex-delegate.sh|$repo/scripts/codex-delegate.sh
 $HOME/.claude/scripts/orchestrator-guard.sh|$repo/scripts/orchestrator-guard.sh
 $HOME/.claude/skills/codex-delegate|$repo/skills/codex-delegate
+$HOME/.claude/agents/advisor.md|$repo/agents/advisor.md
 $HOME/.claude/agents/implementer.md|$repo/agents/implementer.md
 $HOME/.claude/agents/web-researcher.md|$repo/agents/web-researcher.md
 $HOME/.claude/agents/code-investigator.md|$repo/agents/code-investigator.md
@@ -191,7 +195,7 @@ mico — launch Claude as a plan-only orchestrator.
 Implementation/research/investigation are delegated to specialist subagents.
 
 Usage:
-  mico [--orch fable|opus|sonnet] [--impl sonnet|opus|codex] [--codex-effort LEVEL] [claude args...]
+  mico [--orch fable|opus|sonnet] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort LEVEL] [claude args...]
   mico install | uninstall | update | setup
   mico --help | -h
 
@@ -208,9 +212,13 @@ Setup commands:
 Launcher options:
   --orch fable|opus|sonnet
               orchestrator model (default: opus). opus and sonnet add --effort
-              xhigh (unless overridden). The advisor defaults to the orch model
-              (opus->opus, fable->fable) EXCEPT sonnet, which pairs a Sonnet 5
-              executor with an Opus advisor. Pass --advisor to override.
+              high (unless overridden) — deep review is delegated to the xhigh
+              advisor agent; pass --effort xhigh to restore the old behavior.
+  --advisor opus|fable
+              advisor AGENT model (default: opus). The advisor is a read-only
+              subagent the orchestrator consults at decision points (plan
+              review before activation, stuck work). mico does not use Claude
+              Code's built-in server-side advisor.
   --impl sonnet|opus|codex
               implementation backend (default: sonnet -> implementer agent on
               Sonnet 5; opus -> implementer agent forced to Opus; codex ->
@@ -233,6 +241,7 @@ esac
 # ---- launcher ---------------------------------------------------------------
 
 orch=opus
+advisor=opus
 impl=sonnet
 codex_effort=""
 args=()
@@ -240,6 +249,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     -h|--help)      usage; exit 0 ;;
     --orch)         orch=${2:?--orch needs a value};                 shift 2 ;;
+    --advisor)      advisor=${2:?--advisor needs a value};           shift 2 ;;
     --impl)         impl=${2:?--impl needs a value};                 shift 2 ;;
     --codex-effort) codex_effort=${2:?--codex-effort needs a value}; shift 2 ;;
     *)              args+=("$1"); shift ;;
@@ -249,6 +259,10 @@ done
 case "$orch" in
   fable|opus|sonnet) ;;
   *) echo "mico: unknown --orch '$orch' (expected fable|opus|sonnet)" >&2; exit 2 ;;
+esac
+case "$advisor" in
+  opus|fable) ;;
+  *) echo "mico: unknown --advisor '$advisor' (expected opus|fable — this selects the advisor agent's model)" >&2; exit 2 ;;
 esac
 case "$impl" in
   sonnet|opus|codex) ;;
@@ -317,6 +331,23 @@ EOF
     ;;
 esac
 
+# Advisor agent model. The frontmatter default is Opus, so only fable needs a
+# session override (same mechanism as --impl opus).
+if [ "$advisor" = fable ]; then
+  if [ "$prompt_file" = "$base_prompt" ]; then
+    prompt_file=$(mktemp -t mico-prompt.XXXXXX)
+    cat "$base_prompt" >"$prompt_file"
+  fi
+  cat >>"$prompt_file" <<'EOF'
+
+## Session override: advisor agent model
+
+For THIS session, every delegation to the `advisor` agent must pass
+`model: "fable"` (Fable 5). This changes the advisor's MODEL ONLY — when to
+consult it is unchanged (see "Advisor agent").
+EOF
+fi
+
 # Plan-only guard. A session deny (--disallowedTools) would strip Edit/Write from
 # the shared tool pool that subagents inherit, breaking delegation. Instead inject
 # a PreToolUse hook that blocks Edit/Write/NotebookEdit for the MAIN orchestrator
@@ -337,18 +368,15 @@ guard_hook="\"hooks\":{\"PreToolUse\":[{\"matcher\":\"Edit|Write|NotebookEdit\",
 git_perms="\"permissions\":{\"allow\":[\"Bash(git status:*)\",\"Bash(git diff:*)\",\"Bash(git log:*)\",\"Bash(git show:*)\",\"Bash(git add:*)\",\"Bash(git commit:*)\",\"Bash(git stash:*)\",\"Bash(git fetch:*)\",\"Bash(git pull:*)\",\"Bash(git mv:*)\",\"Bash(git rev-parse:*)\",\"Bash(git ls-files:*)\",\"Bash(git blame:*)\"],\"deny\":[\"Bash(git stash drop:*)\",\"Bash(git stash clear:*)\"]}"
 
 # Detect caller overrides so we don't fight them.
-has_effort=false has_settings=false has_advisor=false
+has_effort=false has_settings=false
 for a in "${args[@]+"${args[@]}"}"; do
   case "$a" in
     --effort|--effort=*)     has_effort=true ;;
     --settings|--settings=*) has_settings=true ;;
-    --advisor|--advisor=*)   has_advisor=true ;;
   esac
 done
 
-# The plan-only guard hook and safe-git allowlist are always injected. The advisor
-# is set via the --advisor flag below (not advisorModel here) so it survives even
-# if the caller passes their own --settings.
+# The plan-only guard hook and safe-git allowlist are always injected.
 mico_settings="{$guard_hook,$git_perms}"
 
 claude_args=(
@@ -356,18 +384,17 @@ claude_args=(
   --append-system-prompt-file "$prompt_file"
   --settings "$mico_settings"
 )
-# Opus/Sonnet mode: xhigh effort (official rec for agentic/planning), unless
-# overridden. Sonnet 5 is the first Sonnet-tier model to support xhigh.
+# Opus/Sonnet mode: high effort by default — deep review is delegated to the
+# xhigh advisor agent, so the orchestrator itself trades a notch of reasoning
+# for meaningfully lower latency. Pass --effort xhigh to restore it.
 if [ "$orch" = opus ] || [ "$orch" = sonnet ]; then
-  $has_effort || claude_args+=(--effort xhigh)
+  $has_effort || claude_args+=(--effort high)
 fi
 
-# Advisor defaults to the orchestrator model itself (opus->opus, fable->fable) —
-# EXCEPT sonnet, which pairs the Sonnet 5 executor with an Opus advisor. A
-# same-or-stronger advisor is always valid. Overridden by a caller --advisor.
-advisor=$orch
-[ "$orch" = sonnet ] && advisor=opus
-$has_advisor || claude_args+=(--advisor "$advisor")
+# Claude Code's built-in server-side advisor stays off (its default): every call
+# blocks the loop, rereads the full transcript uncached, and is inherited by
+# every subagent. mico's advisor is the read-only `advisor` AGENT instead,
+# consulted only where the orchestrator prompt says to.
 # --settings is single-value; a user-supplied one would override our guard hook.
 if $has_settings; then
   echo "mico: warning — your --settings overrides mico's plan-only guard hook; the orchestrator will be able to edit files directly." >&2

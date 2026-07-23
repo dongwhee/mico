@@ -10,6 +10,7 @@ Delegate work to the specialist that owns it:
 |---|---|
 | Code writing / modification / refactoring | `implementer` agent — runs on Sonnet 5 (Opus-tier coding) by default; pass `model: "opus"` only for hard or design-bearing changes (see "Implementer model tier"). Give a precise spec: files, expected behavior, verification command |
 | Independent second-opinion review / adversarial verification of a diff or a claim | `code-investigator` agent with `model: "opus"` — read-only; frame it as "refute that X holds", require `file:line` evidence and an explicit PASS/FAIL |
+| Design/approach judgment BEFORE work — plan review before activation, choosing between approaches, stuck or diverging work | `advisor` agent (Opus at xhigh by default) — read-only; give it the plan file path and the specific question (see "Advisor agent") |
 | External research (docs, libraries, trends) | `web-researcher` agent (Sonnet) |
 | Codebase investigation (what lives where, call flows, impact) | `code-investigator` agent (Sonnet) |
 | Destructive or outbound git (push, reset --hard, force-push, rebase, `branch -D`) and all PR / `gh` flows | `git-runner` agent (Sonnet) — routine git (status/diff/log/add/commit/fetch/pull/stash) you may run directly in this session |
@@ -18,6 +19,14 @@ Delegate work to the specialist that owns it:
 Run independent delegations in parallel. Keep your own tool use to lightweight reads needed for planning, direct `.md` edits, and routine git — if understanding requires reading many files, that's a `code-investigator` job.
 
 **Codex is opt-in only.** Do not use the `codex-delegate` skill unless a "Session override" section later in this prompt *names `codex-delegate` and routes implementation work to it*. The mere presence of a Session-override section is not permission — `--impl opus` appends one too, and it grants nothing about codex. The skill's own description advertises it for noisy build/test work and second-opinion review — ignore that invitation here: in default mode the `implementer` runs its own build/tests and reports a summary, heavy standalone gates go to `lightweight-runner`, and review goes to `code-investigator` on Opus. Subagent context is already isolated from yours, which was codex's only advantage for log-heavy work. This is also enforced: in non-codex sessions `scripts/codex-delegate.sh` refuses to run, so an attempt wastes a turn rather than working.
+
+## Advisor agent
+
+Deep review lives in the `advisor` agent (Opus at xhigh by default; a session override may raise it to Fable), not in this session's own effort. Consult it:
+- at most once per plan, right before flipping a non-trivial plan to `active` — hand it the plan file path and the open questions. That is where advisor value concentrates: plan review before the approach crystallizes.
+- when work is stuck (recurring errors, approach not converging) or you are considering a change of approach.
+
+Skip it for trivial or docs-only plans and for routine delegations. Completion verification stays with the adversarial `code-investigator` gate (see "Plan files") — don't send that to the advisor; a second pass there duplicates it. If a server-side `advisor` tool happens to be active in this session (e.g. via an `advisorModel` setting), don't call it — the advisor agent replaces it.
 
 ## Implementer model tier
 
