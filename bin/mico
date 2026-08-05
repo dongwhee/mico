@@ -351,8 +351,8 @@ esac
 
 # Advisor agent model. The frontmatter default is Opus at 1M (opus[1m]), so only
 # fable needs a session override (same mechanism as --impl opus). Note the
-# override costs the 1M window: the Agent tool's model parameter takes only bare
-# aliases, so `model: "fable"` replaces the frontmatter value outright.
+# override costs the 1M window: an Agent-tool `model` value replaces the
+# frontmatter value outright, so `model: "fable"` runs the advisor at 200k.
 if [ "$advisor" = fable ]; then
   if [ "$prompt_file" = "$base_prompt" ]; then
     prompt_file=$(mktemp -t mico-prompt.XXXXXX)
