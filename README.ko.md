@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-Claude Code를 plan-only 오케스트레이터(기본 Opus)로 띄우고, 실제 작업은 전문
+Claude Code를 plan-only 오케스트레이터(기본 Opus, 1M 컨텍스트)로 띄우고, 실제 작업은 전문
 서브에이전트(implementer·advisor·web-researcher·code-investigator·git-runner·lightweight-runner)에
 위임하는 런처/설정 모음. 기본적으로 모든 작업은 Claude 모델로 처리되며, 구현은
 `--impl codex`를 줄 때에 한해 Codex CLI(`codex-delegate` 스킬)로 라우팅된다.
@@ -45,8 +45,9 @@ plan-only 가드 훅은 `mico` 실행 시 `--settings`로 그 세션에만 주�
 ## 사용
 
 ```bash
-mico                          # Opus 오케스트레이터(effort high) + Sonnet 5 implementer + Opus xhigh advisor agent
-mico --orch sonnet            # 가벼운 오케스트레이터: Sonnet 5
+mico                          # Opus 오케스트레이터 1M 컨텍스트(effort high) + Sonnet 5 implementer + Opus xhigh advisor agent
+mico --orch sonnet            # 가벼운 오케스트레이터: Sonnet 5 (역시 1M)
+mico --no-1m                  # 오케스트레이터를 200k 컨텍스트로 되돌림
 mico --advisor fable          # advisor agent를 Opus 대신 Fable 5로 실행
 mico --effort xhigh           # 오케스트레이터 자체를 xhigh로 복원
 mico --impl opus              # 모든 implementer 위임을 Opus로 강제

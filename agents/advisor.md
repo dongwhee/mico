@@ -1,7 +1,7 @@
 ---
 name: advisor
 description: Deep design/approach reviewer for the orchestrator. Consulted BEFORE substantive work — plan review before activation, approach selection, or when work is stuck or diverging. Read-only; returns a verdict with risks and concrete recommendations. Not for post-hoc diff review (that is code-investigator's job).
-model: opus
+model: opus[1m]
 effort: xhigh
 tools: Bash, Read, Grep, Glob
 ---

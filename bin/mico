@@ -13,11 +13,16 @@
 #              and report other-doc conflicts; optionally set up code-review-graph;
 #              then recommend installing jq if missing
 #
-# Usage: mico [--orch fable|opus|sonnet] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort minimal|low|medium|high|xhigh] [claude args...]
-#   --orch          orchestrator model (default: opus). `opus` and `sonnet` add
-#                   `--effort high` — deep review is delegated to the xhigh
+# Usage: mico [--orch fable|opus|sonnet] [--no-1m] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort minimal|low|medium|high|xhigh] [claude args...]
+#   --orch          orchestrator model (default: opus). Runs with a 1M context
+#                   window by default — the `[1m]` suffix is appended internally
+#                   (so the default becomes `--model opus[1m]`); `--orch` itself
+#                   takes only the bare aliases. `opus` and `sonnet`
+#                   add `--effort high` — deep review is delegated to the xhigh
 #                   advisor agent, so the orchestrator trades a notch of
 #                   reasoning for lower latency. Restore with `--effort xhigh`.
+#   --no-1m         drop the orchestrator to the 200k context window instead
+#                   of the 1M default.
 #   --advisor       advisor AGENT model (default: opus; `fable` raises it to
 #                   Fable 5). The advisor is a read-only subagent consulted at
 #                   decision points — mico does not use Claude Code's built-in
@@ -195,7 +200,7 @@ mico — launch Claude as a plan-only orchestrator.
 Implementation/research/investigation are delegated to specialist subagents.
 
 Usage:
-  mico [--orch fable|opus|sonnet] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort LEVEL] [claude args...]
+  mico [--orch fable|opus|sonnet] [--no-1m] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort LEVEL] [claude args...]
   mico install | uninstall | update | setup
   mico --help | -h
 
@@ -211,9 +216,15 @@ Setup commands:
 
 Launcher options:
   --orch fable|opus|sonnet
-              orchestrator model (default: opus). opus and sonnet add --effort
+              orchestrator model (default: opus). Runs with a 1M context
+              window by default — the [1m] suffix is appended internally, so
+              the default is --model opus[1m]; --orch takes only the bare
+              aliases above. Pass --no-1m for the 200k window. opus and
+              sonnet add --effort
               high (unless overridden) — deep review is delegated to the xhigh
               advisor agent; pass --effort xhigh to restore the old behavior.
+  --no-1m     drop the orchestrator to the 200k context window instead of the
+              1M default.
   --advisor opus|fable
               advisor AGENT model (default: opus). The advisor is a read-only
               subagent the orchestrator consults at decision points (plan
@@ -244,11 +255,13 @@ orch=opus
 advisor=opus
 impl=sonnet
 codex_effort=""
+onem=true
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -h|--help)      usage; exit 0 ;;
     --orch)         orch=${2:?--orch needs a value};                 shift 2 ;;
+    --no-1m)        onem=false;                                      shift ;;
     --advisor)      advisor=${2:?--advisor needs a value};           shift 2 ;;
     --impl)         impl=${2:?--impl needs a value};                 shift 2 ;;
     --codex-effort) codex_effort=${2:?--codex-effort needs a value}; shift 2 ;;
@@ -260,6 +273,11 @@ case "$orch" in
   fable|opus|sonnet) ;;
   *) echo "mico: unknown --orch '$orch' (expected fable|opus|sonnet)" >&2; exit 2 ;;
 esac
+# orch_model carries the [1m] suffix for the --model flag; $orch itself stays
+# bare so the effort-gate comparisons below ($orch = opus/sonnet) keep working
+# regardless of --no-1m. Do not collapse these two variables.
+orch_model=$orch
+$onem && orch_model="${orch}[1m]"
 case "$advisor" in
   opus|fable) ;;
   *) echo "mico: unknown --advisor '$advisor' (expected opus|fable — this selects the advisor agent's model)" >&2; exit 2 ;;
@@ -331,8 +349,10 @@ EOF
     ;;
 esac
 
-# Advisor agent model. The frontmatter default is Opus, so only fable needs a
-# session override (same mechanism as --impl opus).
+# Advisor agent model. The frontmatter default is Opus at 1M (opus[1m]), so only
+# fable needs a session override (same mechanism as --impl opus). Note the
+# override costs the 1M window: the Agent tool's model parameter takes only bare
+# aliases, so `model: "fable"` replaces the frontmatter value outright.
 if [ "$advisor" = fable ]; then
   if [ "$prompt_file" = "$base_prompt" ]; then
     prompt_file=$(mktemp -t mico-prompt.XXXXXX)
@@ -380,7 +400,7 @@ done
 mico_settings="{$guard_hook,$git_perms}"
 
 claude_args=(
-  --model "$orch"
+  --model "$orch_model"
   --append-system-prompt-file "$prompt_file"
   --settings "$mico_settings"
 )

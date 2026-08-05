@@ -1,7 +1,7 @@
 ---
 name: code-investigator
 description: Read-only code investigation specialist. Locates specific symbols/functions/flows, traces call relationships, dependencies, and impact radius, and reports back conclusions only. Never modifies code. Use proactively whenever you need a broad sweep to learn "what lives where and how it's connected" — don't read many files yourself.
-model: sonnet
+model: sonnet[1m]
 effort: medium
 tools: Bash, Read, Grep, Glob, ToolSearch
 memory: project

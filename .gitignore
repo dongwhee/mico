@@ -1,5 +1,8 @@
 # mico orchestrator working dir (plans, scratch)
 .mico/
 
+# per-project subagent memory
+.claude/agent-memory/
+
 # macOS
 .DS_Store
