@@ -38,6 +38,7 @@ cd mico
 | `~/.local/bin/mico` | `bin/mico` |
 | `~/.claude/agents/*.md` (6 files) | `agents/` |
 | `~/.claude/skills/codex-delegate` | `skills/codex-delegate/` |
+| `~/.claude/skills/advisor-fable` | `skills/advisor-fable/` |
 | `~/.claude/scripts/codex-delegate.sh` | `scripts/codex-delegate.sh` |
 | `~/.claude/scripts/orchestrator-guard.sh` | `scripts/orchestrator-guard.sh` |
 
@@ -61,6 +62,13 @@ mico --continue               # remaining args are passed straight through to cl
 mico setup                    # run headless Claude in the current project folder (see below)
 mico --help                   # all options
 ```
+
+`--advisor fable` is session-wide. For a one-off, type `/advisor-fable [question]`
+in-session: it runs a single `advisor` consultation on Fable 5 instead of Opus. The
+skill is user-invocable only — the orchestrator cannot escalate to Fable on its own,
+it can only suggest that you do. Note the tradeoff: an Agent-tool `model` override
+replaces the agent's `opus[1m]` default, so a Fable consultation gets a 200k context
+window, not 1M.
 
 `mico setup` launches headless Claude (`claude -p`) in the current project folder
 to align that project's docs with mico conventions: it adds a note to CLAUDE.md

@@ -35,6 +35,7 @@ cd mico
 | `~/.local/bin/mico` | `bin/mico` |
 | `~/.claude/agents/*.md` (6개) | `agents/` |
 | `~/.claude/skills/codex-delegate` | `skills/codex-delegate/` |
+| `~/.claude/skills/advisor-fable` | `skills/advisor-fable/` |
 | `~/.claude/scripts/codex-delegate.sh` | `scripts/codex-delegate.sh` |
 | `~/.claude/scripts/orchestrator-guard.sh` | `scripts/orchestrator-guard.sh` |
 
@@ -57,6 +58,12 @@ mico --continue               # 나머지 인자는 claude로 그대로 전달
 mico setup                    # 현재 프로젝트 폴더에서 headless Claude 실행 (아래 참고)
 mico --help                   # 전체 옵션
 ```
+
+`--advisor fable`은 세션 전체에 적용된다. 한 번만 쓰려면 세션 중에
+`/advisor-fable [질문]`을 입력하면 된다 — 그 상담 한 건만 Opus 대신 Fable 5로 실행한다.
+이 스킬은 사용자 전용(user-invocable only)이라 오케스트레이터가 스스로 Fable로 올릴 수 없고,
+필요하다고 제안만 할 수 있다. 트레이드오프: Agent 툴의 `model` 오버라이드는 에이전트
+frontmatter의 `opus[1m]`을 대체하므로, Fable 상담은 1M이 아니라 200k 컨텍스트로 돌아간다.
 
 `mico setup`은 현재 프로젝트 폴더에서 headless Claude(`claude -p`)를 띄워 그 프로젝트의
 문서를 mico 컨벤션에 맞춘다: CLAUDE.md에 (프로젝트 자체 플랜 vs 오케스트레이터의

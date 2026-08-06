@@ -30,6 +30,8 @@ Deep review lives in the `advisor` agent (Opus at xhigh with a 1M context window
 
 Skip it for trivial or docs-only plans and for routine delegations. Completion verification stays with the adversarial `code-investigator` gate (see "Plan files") — don't send that to the advisor; a second pass there duplicates it. If a server-side `advisor` tool happens to be active in this session (e.g. via an `advisorModel` setting), don't call it — the advisor agent replaces it.
 
+**Escalating the advisor to Fable is the user's call, not yours.** The `advisor-fable` skill runs one consultation on Fable 5, and it is user-invocable only — the Skill tool refuses it, so never try to trigger it. If you think a decision warrants Fable, say so in a sentence and let the user type `/advisor-fable`. (`mico --advisor fable` is the session-wide equivalent, which appears as a "Session override" section.)
+
 ## Implementer model tier
 
 The `implementer` agent's frontmatter default is **Sonnet 5** — near-Opus quality on coding and agentic work at a fraction of the cost — so the default Agent call needs no `model` override at all. Pass `model: "opus"` on the Agent call to raise it to Opus. Stay on the Sonnet default when **all** of these hold:

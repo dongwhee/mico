@@ -48,6 +48,7 @@ $HOME/.local/bin/mico|$repo/bin/mico
 $HOME/.claude/scripts/codex-delegate.sh|$repo/scripts/codex-delegate.sh
 $HOME/.claude/scripts/orchestrator-guard.sh|$repo/scripts/orchestrator-guard.sh
 $HOME/.claude/skills/codex-delegate|$repo/skills/codex-delegate
+$HOME/.claude/skills/advisor-fable|$repo/skills/advisor-fable
 $HOME/.claude/agents/advisor.md|$repo/agents/advisor.md
 $HOME/.claude/agents/implementer.md|$repo/agents/implementer.md
 $HOME/.claude/agents/web-researcher.md|$repo/agents/web-researcher.md
@@ -230,6 +231,8 @@ Launcher options:
               subagent the orchestrator consults at decision points (plan
               review before activation, stuck work). mico does not use Claude
               Code's built-in server-side advisor.
+              In-session, type /advisor-fable to run a single advisor
+              consultation on Fable without setting this flag.
   --impl sonnet|opus|codex
               implementation backend (default: sonnet -> implementer agent on
               Sonnet 5; opus -> implementer agent forced to Opus; codex ->
