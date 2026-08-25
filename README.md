@@ -78,11 +78,11 @@ other docs (AGENTS.md · docs/ · README). It is idempotent, and recommends
 installing `jq` afterwards if it is missing.
 
 The orchestrator is plan-only: a guard hook blocks its Edit/Write/NotebookEdit on
-non-markdown files, so for code it analyzes, plans, and delegates (see the routing
+everything outside a short exemption list, so for code it analyzes, plans, and delegates (see the routing
 table in `prompts/orchestrator-prompt.md`). It can, however, directly edit any
-`.md` file and run a safe subset of git
+`.md` file, author report deliverables (see below), and run a safe subset of git
 (status/diff/log/add/commit/stash/fetch/pull/...) without prompts;
-non-markdown code edits and destructive/outbound git (push, reset --hard,
+every other file edit and destructive/outbound git (push, reset --hard,
 force-push, rebase) are still delegated to subagents (public `git push` is
 additionally gated by the harness).
 
@@ -94,6 +94,27 @@ only in-progress plans stay in the root directory while finished ones move to
 `.mico/plans/archive/` — so the directory listing itself is the active-plan index
 (no INDEX file and no grep needed). For details see the "Plan files" section of
 `prompts/orchestrator-prompt.md`.
+
+Report deliverables are the other exemption. Handing you an HTML page — an audit,
+a comparison table, a diagram — is reporting, not implementation, so the
+orchestrator writes it itself instead of spending an `implementer` run on it. Two
+locations are open, extension-agnostic (`.html`/`.css`/`.js`/data files alike):
+
+- the **session scratchpad** — a `scratchpad/` directory under the system temp
+  root (`$TMPDIR`, `/tmp`, `/private/tmp`, `/var/folders`, `/private/var/folders`),
+  where Claude Code puts
+  its per-session scratch files. This is the default for a page published via the
+  built-in `Artifact` tool and handed over as a link. A directory inside your
+  project that merely happens to be named `scratchpad/` is *not* exempt — the
+  match is anchored to the temp root, not to the working directory, so it holds
+  no matter which subdirectory you launched `mico` from.
+- any **`.mico/reports/`** directory, when you want the file kept on disk in the
+  project — `mico setup` already gitignores `.mico/`, so it stays out of the
+  repo's history unless you add it deliberately.
+
+Everything else stays with the `implementer`: HTML that ships as part of the
+product is still code. And note the `jq` dependency — without `jq` the guard
+falls back to blocking *all* direct edits, report deliverables included.
 
 ## Update / Uninstall
 
