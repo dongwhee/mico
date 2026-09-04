@@ -7,7 +7,7 @@ Claude Code를 plan-only 오케스트레이터(기본 Opus, 1M 컨텍스트)로 
 위임하는 런처/설정 모음. 기본적으로 모든 작업은 Claude 모델로 처리되며, 구현은
 `--impl codex`를 줄 때에 한해 Codex CLI(`codex-delegate` 스킬)로 라우팅된다.
 
-Claude Code 토큰 사용량을 관리하기 위해 만들었다 — 메인 세션은 가볍게(계획·위임만) 유지하고, 무겁거나 노이즈가 큰 작업은 저렴한 서브에이전트로, 추론 effort는 작업에 맞게 조절해 라우팅한다.
+Claude Code 토큰 사용량을 관리하기 위해 만들었다 — 메인 세션은 가볍게(계획·위임만) 유지하고, 무겁거나 노이즈가 큰 작업은 저렴한 서브에이전트로, 추론 effort는 에이전트별로 조절해 라우팅한다. 서브에이전트는 1단계까지만 허용되므로(mico가 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 기본값을 1로 설정 — 직접 export하면 덮어쓸 수 있다) 전문 에이전트가 다시 위임할 수 없다.
 
 ## 요구사항
 
@@ -46,11 +46,11 @@ plan-only 가드 훅은 `mico` 실행 시 `--settings`로 그 세션에만 주�
 ## 사용
 
 ```bash
-mico                          # Opus 오케스트레이터 1M 컨텍스트(effort high) + Sonnet 5 implementer + Opus xhigh advisor agent
+mico                          # Opus 오케스트레이터 1M 컨텍스트 + Sonnet 5 implementer + Opus xhigh advisor agent
 mico --orch sonnet            # 가벼운 오케스트레이터: Sonnet 5 (역시 1M)
 mico --no-1m                  # 오케스트레이터를 200k 컨텍스트로 되돌림
 mico --advisor fable          # advisor agent를 Opus 대신 Fable 5로 실행
-mico --effort xhigh           # 오케스트레이터 자체를 xhigh로 복원
+mico --effort xhigh           # 오케스트레이터 effort 상향 (high가 모델 기본값, max도 유효)
 mico --impl opus              # 모든 implementer 위임을 Opus로 강제
 mico --impl codex             # 구현을 codex-delegate(build, xhigh)로 라우팅
 mico --codex-effort high      # codex effort 오버라이드 (CODEX_DELEGATE_EFFORT)

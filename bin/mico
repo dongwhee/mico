@@ -17,10 +17,11 @@
 #   --orch          orchestrator model (default: opus). Runs with a 1M context
 #                   window by default — the `[1m]` suffix is appended internally
 #                   (so the default becomes `--model opus[1m]`); `--orch` itself
-#                   takes only the bare aliases. `opus` and `sonnet`
-#                   add `--effort high` — deep review is delegated to the xhigh
-#                   advisor agent, so the orchestrator trades a notch of
-#                   reasoning for lower latency. Restore with `--effort xhigh`.
+#                   takes only the bare aliases. mico does not set effort itself
+#                   — `high` is the model's own default for both opus and
+#                   sonnet, and deep review is delegated to the xhigh advisor
+#                   agent regardless. Any `--effort` value (low/medium/high/
+#                   xhigh/max) is passed straight through to `claude`.
 #   --no-1m         drop the orchestrator to the 200k context window instead
 #                   of the 1M default.
 #   --advisor       advisor AGENT model (default: opus; `fable` raises it to
@@ -33,11 +34,30 @@
 #                   codex -> codex-delegate skill, build mode)
 #   --codex-effort  codex reasoning effort, exported as CODEX_DELEGATE_EFFORT
 #                   (default: xhigh when --impl codex; script default otherwise)
+# mico also exports CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1 by default so
+# specialist subagents cannot re-delegate; export it yourself first to override.
 # Unrecognized args are passed through to claude (e.g. --effort, --continue).
 set -uo pipefail
 
 self=$(readlink -f "$0")
 repo=$(cd "$(dirname "$self")/.." && pwd)
+
+# mico's topology is exactly one level of specialists: the orchestrator
+# delegates to a specialist subagent, and that specialist does not itself
+# re-delegate. Claude Code's default max subagent spawn depth is 3, so
+# without this cap an --impl opus implementer (or any other specialist)
+# could still nest two further levels of subagents underneath it. Depth is
+# counted with the main agent at 0 and a first-level subagent at 1, so
+# capping at 1 permits mico's own orchestrator -> specialist delegations;
+# a subagent at that depth simply never receives the Agent tool, so nested
+# delegation beyond it is impossible rather than merely refused. Exported
+# here, ahead of the subcommand dispatch below, so it also covers `mico
+# setup`'s headless `claude -p` call and every other path that launches
+# claude — not just the launcher below.
+# Default is 1; an already-exported value (set by the caller before launching
+# mico) wins and is left untouched.
+: "${CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH:=1}"
+export CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH
 
 # ---- install / uninstall / update ------------------------------------------
 
@@ -220,10 +240,11 @@ Launcher options:
               orchestrator model (default: opus). Runs with a 1M context
               window by default — the [1m] suffix is appended internally, so
               the default is --model opus[1m]; --orch takes only the bare
-              aliases above. Pass --no-1m for the 200k window. opus and
-              sonnet add --effort
-              high (unless overridden) — deep review is delegated to the xhigh
-              advisor agent; pass --effort xhigh to restore the old behavior.
+              aliases above. Pass --no-1m for the 200k window. mico does not
+              set effort itself — high is the model's own default for both
+              opus and sonnet, and deep review is delegated to the xhigh
+              advisor agent regardless. Any --effort value (low/medium/high/
+              xhigh/max) is passed straight through to claude.
   --no-1m     drop the orchestrator to the 200k context window instead of the
               1M default.
   --advisor opus|fable
@@ -242,6 +263,14 @@ Launcher options:
               (default: xhigh when --impl codex).
 
 Any other arguments are passed through to claude (e.g. --continue, --resume, --effort).
+
+Notes:
+  mico exports CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1 (default) so the
+  orchestrator's specialist subagents cannot themselves re-delegate. `mico
+  setup` inherits the variable too, but spawns no subagents anyway — it runs
+  with a fixed read/write toolset and no Agent tool, so the cap has no
+  observable effect there. Export the variable yourself before launching
+  mico to override the default.
 EOF
 }
 
@@ -276,9 +305,8 @@ case "$orch" in
   fable|opus|sonnet) ;;
   *) echo "mico: unknown --orch '$orch' (expected fable|opus|sonnet)" >&2; exit 2 ;;
 esac
-# orch_model carries the [1m] suffix for the --model flag; $orch itself stays
-# bare so the effort-gate comparisons below ($orch = opus/sonnet) keep working
-# regardless of --no-1m. Do not collapse these two variables.
+# orch_model is $orch plus the [1m] suffix (when enabled); it is consumed
+# only by --model below.
 orch_model=$orch
 $onem && orch_model="${orch}[1m]"
 case "$advisor" in
@@ -391,10 +419,9 @@ guard_hook="\"hooks\":{\"PreToolUse\":[{\"matcher\":\"Edit|Write|NotebookEdit\",
 git_perms="\"permissions\":{\"allow\":[\"Bash(git status:*)\",\"Bash(git diff:*)\",\"Bash(git log:*)\",\"Bash(git show:*)\",\"Bash(git add:*)\",\"Bash(git commit:*)\",\"Bash(git stash:*)\",\"Bash(git fetch:*)\",\"Bash(git pull:*)\",\"Bash(git mv:*)\",\"Bash(git rev-parse:*)\",\"Bash(git ls-files:*)\",\"Bash(git blame:*)\"],\"deny\":[\"Bash(git stash drop:*)\",\"Bash(git stash clear:*)\"]}"
 
 # Detect caller overrides so we don't fight them.
-has_effort=false has_settings=false
+has_settings=false
 for a in "${args[@]+"${args[@]}"}"; do
   case "$a" in
-    --effort|--effort=*)     has_effort=true ;;
     --settings|--settings=*) has_settings=true ;;
   esac
 done
@@ -407,12 +434,6 @@ claude_args=(
   --append-system-prompt-file "$prompt_file"
   --settings "$mico_settings"
 )
-# Opus/Sonnet mode: high effort by default — deep review is delegated to the
-# xhigh advisor agent, so the orchestrator itself trades a notch of reasoning
-# for meaningfully lower latency. Pass --effort xhigh to restore it.
-if [ "$orch" = opus ] || [ "$orch" = sonnet ]; then
-  $has_effort || claude_args+=(--effort high)
-fi
 
 # Claude Code's built-in server-side advisor stays off (its default): every call
 # blocks the loop, rereads the full transcript uncached, and is inherited by

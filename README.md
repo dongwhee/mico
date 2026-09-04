@@ -9,7 +9,7 @@ lightweight-runner). Everything stays on Claude models by default; implementatio
 can optionally be routed to the Codex CLI with `--impl codex` (the
 `codex-delegate` skill), and only then.
 
-It exists to keep Claude Code token usage under control: the main session stays light (planning and delegation only), heavy or noisy work is routed to cheaper subagents, and reasoning effort is tuned to each task.
+It exists to keep Claude Code token usage under control: the main session stays light (planning and delegation only), heavy or noisy work is routed to cheaper subagents, and reasoning effort is tuned per agent. Subagents are capped at one level deep (mico defaults `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to 1; export your own value to override), so specialists cannot re-delegate.
 
 ## Requirements
 
@@ -50,11 +50,11 @@ injected per-session via `--settings` when you run `mico`.
 ## Usage
 
 ```bash
-mico                          # Opus orchestrator, 1M context (effort high) + implementer on Sonnet 5 + advisor agent on Opus xhigh
+mico                          # Opus orchestrator, 1M context + implementer on Sonnet 5 + advisor agent on Opus xhigh
 mico --orch sonnet            # lighter orchestrator on Sonnet 5 (also 1M)
 mico --no-1m                  # drop the orchestrator to the 200k context window
 mico --advisor fable          # run the advisor agent on Fable 5 instead of Opus
-mico --effort xhigh           # raise the orchestrator itself back to xhigh
+mico --effort xhigh           # raise the orchestrator's effort (high is the model default; max is also valid)
 mico --impl opus              # force every implementer delegation onto Opus
 mico --impl codex             # route implementation to codex-delegate (build, xhigh)
 mico --codex-effort high      # override codex effort (CODEX_DELEGATE_EFFORT)
