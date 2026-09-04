@@ -50,7 +50,7 @@ mico                          # Opus 오케스트레이터 1M 컨텍스트 + Son
 mico --orch sonnet            # 가벼운 오케스트레이터: Sonnet 5 (역시 1M)
 mico --no-1m                  # 오케스트레이터를 200k 컨텍스트로 되돌림
 mico --advisor fable          # advisor agent를 Opus 대신 Fable 5로 실행
-mico --effort xhigh           # 오케스트레이터 effort 상향 (high가 모델 기본값, max도 유효)
+mico --effort xhigh           # 오케스트레이터 effort 지정 (mico는 설정 안 함, claude로 전달)
 mico --impl opus              # 모든 implementer 위임을 Opus로 강제
 mico --impl codex             # 구현을 codex-delegate(build, xhigh)로 라우팅
 mico --codex-effort high      # codex effort 오버라이드 (CODEX_DELEGATE_EFFORT)

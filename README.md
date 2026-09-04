@@ -54,7 +54,7 @@ mico                          # Opus orchestrator, 1M context + implementer on S
 mico --orch sonnet            # lighter orchestrator on Sonnet 5 (also 1M)
 mico --no-1m                  # drop the orchestrator to the 200k context window
 mico --advisor fable          # run the advisor agent on Fable 5 instead of Opus
-mico --effort xhigh           # raise the orchestrator's effort (high is the model default; max is also valid)
+mico --effort xhigh           # set the orchestrator's effort (mico sets none; passed through to claude)
 mico --impl opus              # force every implementer delegation onto Opus
 mico --impl codex             # route implementation to codex-delegate (build, xhigh)
 mico --codex-effort high      # override codex effort (CODEX_DELEGATE_EFFORT)

@@ -18,10 +18,10 @@
 #                   window by default — the `[1m]` suffix is appended internally
 #                   (so the default becomes `--model opus[1m]`); `--orch` itself
 #                   takes only the bare aliases. mico does not set effort itself
-#                   — `high` is the model's own default for both opus and
-#                   sonnet, and deep review is delegated to the xhigh advisor
-#                   agent regardless. Any `--effort` value (low/medium/high/
-#                   xhigh/max) is passed straight through to `claude`.
+#                   — whatever the model's own default is applies, and deep
+#                   review is delegated to the xhigh advisor agent regardless.
+#                   Any `--effort` value (low/medium/high/xhigh/max) is passed
+#                   straight through to `claude`.
 #   --no-1m         drop the orchestrator to the 200k context window instead
 #                   of the 1M default.
 #   --advisor       advisor AGENT model (default: opus; `fable` raises it to
@@ -241,10 +241,10 @@ Launcher options:
               window by default — the [1m] suffix is appended internally, so
               the default is --model opus[1m]; --orch takes only the bare
               aliases above. Pass --no-1m for the 200k window. mico does not
-              set effort itself — high is the model's own default for both
-              opus and sonnet, and deep review is delegated to the xhigh
-              advisor agent regardless. Any --effort value (low/medium/high/
-              xhigh/max) is passed straight through to claude.
+              set effort itself — whatever the model's own default is
+              applies, and deep review is delegated to the xhigh advisor
+              agent regardless. Any --effort value (low/medium/high/xhigh/
+              max) is passed straight through to claude.
   --no-1m     drop the orchestrator to the 200k context window instead of the
               1M default.
   --advisor opus|fable
