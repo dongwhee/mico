@@ -271,6 +271,10 @@ Notes:
   with a fixed read/write toolset and no Agent tool, so the cap has no
   observable effect there. Export the variable yourself before launching
   mico to override the default.
+
+  mico also installs an observe-only Stop hook that records turns ending on
+  an announced-but-unperformed action ("I'll run the review" with no tool
+  call following) to .mico/intent-turn-log.jsonl. It never blocks.
 EOF
 }
 
@@ -418,6 +422,17 @@ guard="$repo/scripts/orchestrator-guard.sh"
 guard_hook="\"hooks\":{\"PreToolUse\":[{\"matcher\":\"Edit|Write|NotebookEdit\",\"hooks\":[{\"type\":\"command\",\"command\":\"$guard\"}]}]}"
 git_perms="\"permissions\":{\"allow\":[\"Bash(git status:*)\",\"Bash(git diff:*)\",\"Bash(git log:*)\",\"Bash(git show:*)\",\"Bash(git add:*)\",\"Bash(git commit:*)\",\"Bash(git stash:*)\",\"Bash(git fetch:*)\",\"Bash(git pull:*)\",\"Bash(git mv:*)\",\"Bash(git rev-parse:*)\",\"Bash(git ls-files:*)\",\"Bash(git blame:*)\"],\"deny\":[\"Bash(git stash drop:*)\",\"Bash(git stash clear:*)\"]}"
 
+# Observe-only Stop hook (step 11 of .mico/plans/review-loop-termination.md):
+# logs turns that end on an announced-but-unperformed action to
+# .mico/intent-turn-log.jsonl. It never blocks and carries no matcher (the
+# Stop event has no tool to match against). This holds only the "Stop":[...]
+# entry, not a second top-level "hooks" key — JSON objects resolve duplicate
+# keys last-wins, so a second "hooks":{...} concatenated alongside guard_hook's
+# would silently overwrite it and disable the plan-only guard. It is spliced
+# into guard_hook's existing "hooks" object below instead.
+intent_probe="$repo/scripts/intent-turn-probe.sh"
+stop_hook="\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$intent_probe\"}]}]"
+
 # Detect caller overrides so we don't fight them.
 has_settings=false
 for a in "${args[@]+"${args[@]}"}"; do
@@ -427,7 +442,11 @@ for a in "${args[@]+"${args[@]}"}"; do
 done
 
 # The plan-only guard hook and safe-git allowlist are always injected.
-mico_settings="{$guard_hook,$git_perms}"
+# hooks_json merges the Stop entry into guard_hook's own "hooks" object (strip
+# guard_hook's trailing "}", append the Stop entry, re-close) rather than
+# concatenating a second "hooks" key alongside it — see stop_hook's comment.
+hooks_json="${guard_hook%\}},${stop_hook}}"
+mico_settings="{$hooks_json,$git_perms}"
 
 claude_args=(
   --model "$orch_model"
