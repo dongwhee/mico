@@ -121,9 +121,37 @@ intent_pattern="겠습니다|할게요|하겠어요|I'll|I will|Let me|Next,? I|
 # explicit confirm/approve word — any of these means the turn is asking or
 # hedging, not just announcing, so it does not count as a match even if the
 # intent pattern also matched.
-decision_pattern='\?|까요|면([[:space:]]|$)|(^|[^[:alnum:]])(if|once|whether|confirm|approve)([^[:alnum:]]|$)'
+#
+# Word-boundary classes here are [^a-zA-Z]/[a-zA-Z] rather than
+# [[:alnum:]]/[^[:alnum:]] on purpose: [[:alnum:]] classifies Korean syllables
+# as alphanumeric under a UTF-8 locale (e.g. LANG=en_US.UTF-8) but not under
+# LC_ALL=C, which would make the boundary — and therefore whether "confirm"
+# embedded next to Korean text counts as a whole word — depend on a locale
+# this hook's process doesn't control. Restricting the class to ASCII letters
+# keeps the boundary check identical under any locale, while still treating
+# "verify"/"modify" (which contain the letters "if" only adjacent to other
+# ASCII letters) as non-matches.
+#
+# The 면(...) alternative also accepts a following comma or common sentence
+# punctuation, not just whitespace/end-of-string, so "없으면, ..." still
+# counts as a conditional even though the comma sits between 면 and the next
+# clause.
+decision_pattern='\?|까요|면([[:space:],.、·)]|$)|(^|[^a-zA-Z])(if|once|whether|confirm|approve)([^a-zA-Z]|$)'
 
-if [[ "$final_sentence" =~ $intent_pattern ]] && ! [[ "$final_sentence" =~ $decision_pattern ]]; then
+# The confirm/approve/if/once/whether words above should match regardless of
+# case ("Confirm the plan..." / "Once done..."), but nocasematch is scoped to
+# just this one test — turning it on for the intent_pattern match too would
+# change unrelated matching behavior this task isn't asked to touch. Save and
+# restore the prior setting so we don't leak a locale/shopt change to the rest
+# of the hook process.
+nocasematch_was_set=1
+shopt -q nocasematch || nocasematch_was_set=0
+shopt -s nocasematch
+decision_match=1
+[[ "$final_sentence" =~ $decision_pattern ]] || decision_match=0
+[ "$nocasematch_was_set" -eq 1 ] || shopt -u nocasematch
+
+if [[ "$final_sentence" =~ $intent_pattern ]] && [ "$decision_match" -eq 0 ]; then
   mkdir -p "$cwd/.mico" 2>/dev/null || exit 0
   logfile="$cwd/.mico/intent-turn-log.jsonl"
   jq -n -c \

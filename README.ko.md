@@ -7,7 +7,7 @@ Claude Code를 plan-only 오케스트레이터(기본 Opus, 1M 컨텍스트)로 
 위임하는 런처/설정 모음. 기본적으로 모든 작업은 Claude 모델로 처리되며, 구현은
 `--impl codex`를 줄 때에 한해 Codex CLI(`codex-delegate` 스킬)로 라우팅된다.
 
-세션 범위 훅 두 개를 설치한다: plan-only 가드, 그리고 "하겠습니다"로 끝나고 실행하지 않은 턴을 `.mico/intent-turn-log.jsonl`에 기록하는 관찰 전용 Stop 프로브(차단하지 않는다).
+세션 범위 훅 두 개를 설치한다: plan-only 가드, 그리고 마지막 문장이 다음 행동을 예고만 하고 끝난 턴을 `.mico/intent-turn-log.jsonl`에 기록하는 관찰 전용 Stop 프로브(차단하지 않으며, 집계 목적이라 과검출을 허용한다).
 
 Claude Code 토큰 사용량을 관리하기 위해 만들었다 — 메인 세션은 가볍게(계획·위임만) 유지하고, 무겁거나 노이즈가 큰 작업은 저렴한 서브에이전트로, 추론 effort는 에이전트별로 조절해 라우팅한다. 서브에이전트는 1단계까지만 허용되므로(mico가 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 기본값을 1로 설정 — 직접 export하면 덮어쓸 수 있다) 전문 에이전트가 다시 위임할 수 없다.
 

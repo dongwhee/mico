@@ -9,7 +9,7 @@ lightweight-runner). Everything stays on Claude models by default; implementatio
 can optionally be routed to the Codex CLI with `--impl codex` (the
 `codex-delegate` skill), and only then.
 
-It installs two session-scoped hooks: the plan-only guard, and an observe-only Stop probe that records turns ending on an announced-but-unperformed action to `.mico/intent-turn-log.jsonl` (it never blocks).
+It installs two session-scoped hooks: the plan-only guard, and an observe-only Stop probe that logs turns whose last sentence merely announces a next action to `.mico/intent-turn-log.jsonl` (it never blocks, and it over-matches by design — the log is for counting, not enforcement).
 
 It exists to keep Claude Code token usage under control: the main session stays light (planning and delegation only), heavy or noisy work is routed to cheaper subagents, and reasoning effort is tuned per agent. Subagents are capped at one level deep (mico defaults `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to 1; export your own value to override), so specialists cannot re-delegate.
 
