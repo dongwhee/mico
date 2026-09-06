@@ -121,7 +121,7 @@ intent_pattern="겠습니다|할게요|하겠어요|I'll|I will|Let me|Next,? I|
 # explicit confirm/approve word — any of these means the turn is asking or
 # hedging, not just announcing, so it does not count as a match even if the
 # intent pattern also matched.
-decision_pattern='\?|까요|면 |if|once|whether|confirm|approve'
+decision_pattern='\?|까요|면([[:space:]]|$)|(^|[^[:alnum:]])(if|once|whether|confirm|approve)([^[:alnum:]]|$)'
 
 if [[ "$final_sentence" =~ $intent_pattern ]] && ! [[ "$final_sentence" =~ $decision_pattern ]]; then
   mkdir -p "$cwd/.mico" 2>/dev/null || exit 0

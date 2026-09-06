@@ -460,7 +460,7 @@ claude_args=(
 # consulted only where the orchestrator prompt says to.
 # --settings is single-value; a user-supplied one would override our guard hook.
 if $has_settings; then
-  echo "mico: warning — your --settings overrides mico's plan-only guard hook; the orchestrator will be able to edit files directly." >&2
+  echo "mico: warning — your --settings overrides mico's hooks (plan-only guard + intent-turn probe); the orchestrator will be able to edit files directly." >&2
 fi
 
 exec claude "${claude_args[@]}" "${args[@]+"${args[@]}"}"
