@@ -1,18 +1,18 @@
 ---
 name: codex-delegate
-description: Delegate a self-contained unit of work (implement+build+test, or review) to `codex exec` so noisy logs stay out of Claude Code's context and only a small verdict file returns. OPT-IN ONLY under mico — use it only in a session started with `mico --impl codex`, where the orchestrator prompt explicitly routes implementation here; in any other mico session the helper script hard-refuses to run. Outside mico, use it for builds/tests that emit lots of output or for an independent second-opinion review.
+description: Delegate a self-contained unit of work (implement+build+test, or review) to the Codex CLI (`codex exec`) so that only a small verdict file comes back. User-invocable only — type `/codex-delegate` when you want Codex to take a unit of work or give an independent second-opinion review. In an orchestrator session it is routed automatically only under `mico orch --impl codex`; every other orchestrator session hard-refuses it.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Delegating to `codex exec`
 
-> **Opt-in only under mico.** `bin/mico` exports `MICO_CODEX_DISABLED=1` in every
-> non-codex `--impl` mode, and `codex-delegate.sh` exits immediately when it sees
-> that. So in a default mico session every path in this skill dead-ends — route
-> build/test work to the `implementer` (it verifies its own work) or
-> `lightweight-runner`, and route review to `code-investigator` on Opus. Only
-> `mico --impl codex` clears the gate. The variable is unset outside mico, so
-> standalone use is unaffected.
+> **Opt-in only.** In a plain session this skill runs only when the user invokes it.
+> Under `mico orch`, `bin/mico` exports `MICO_CODEX_DISABLED=1` in every non-codex
+> `--impl` mode and `codex-delegate.sh` exits immediately when it sees that, so every
+> path here dead-ends — route build/test work to the `implementer` (it verifies its
+> own work) or `lightweight-runner`, and review to `code-investigator` on Opus. Only
+> `mico orch --impl codex` clears the gate. The variable is unset outside `mico orch`.
 
 Claude Code (CC) is the orchestrator; `codex exec` is an **isolated subcontractor**.
 Codex does the noisy work (writing code, building, testing, reviewing) inside its
@@ -34,7 +34,7 @@ flood its context — defeating the entire purpose.
 ```bash
 ~/.claude/scripts/codex-delegate.sh build <workdir> <workdir>/build_verdict.json "<prompt>"
 ```
-- effort = `high` (override with env `CODEX_DELEGATE_EFFORT`, e.g. set by the `mico --codex-effort` launcher)
+- effort = `high` (override with env `CODEX_DELEGATE_EFFORT`, e.g. set by the `mico orch --codex-effort` launcher)
 - Codex implements, builds, and runs the tests, then writes a JSON verdict:
   `{"success": bool, "tests_passed": int, "tests_failed": int, "notes": str}`
 - CC then `Read`s only `build_verdict.json`.
@@ -70,9 +70,10 @@ If you need the review as structured JSON for downstream automation, run a follo
 Codex obeys CC skill files when you give the **absolute path** in the prompt and tell
 it to read first, e.g.:
 ```
-Required skills (read these first): /Users/dongwhee/.claude/skills/<name>/SKILL.md
+Required skills (read these first): $HOME/.claude/skills/<name>/SKILL.md
 ```
-No auto-invocation needed — a read-based reference is enough.
+(expand `$HOME` to the real absolute path before sending — Codex reads the literal
+string). No auto-invocation needed — a read-based reference is enough.
 
 ## Writing good prompts (build mode)
 
@@ -82,7 +83,7 @@ Be explicit and verifiable:
 - Any skill files to read (absolute paths).
 The script appends the JSON-verdict contract automatically; you don't add it.
 
-## Gotchas (verified on this machine — macOS, codex-cli 0.136.0)
+## Gotchas (verified on macOS with codex-cli 0.13x; re-check after a Codex upgrade)
 
 - `--effort` is NOT a `codex exec` flag. Effort is set via
   `-c model_reasoning_effort=high|xhigh` (the script does this for you).

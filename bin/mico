@@ -1,19 +1,39 @@
 #!/usr/bin/env bash
-# mico — launch Claude as a plan-only orchestrator.
-# Implementation/research/investigation are delegated to specialist subagents
-# (implementer, web-researcher, code-investigator, ...) installed from agents/.
+# mico — a setup utility for Claude Code, plus an optional plan-only orchestrator.
+#
+# `mico install` puts one opinionated, measured configuration in place:
+#   - six specialist subagents (~/.claude/agents/*.md, symlinked from agents/)
+#     that a plain Claude Code session can delegate to when it judges that useful;
+#   - global settings in ~/.claude/settings.json: default model opus[1m],
+#     autoCompactWindow 300000, and CLAUDE_CODE_SUBAGENT_MODEL=sonnet so built-in
+#     subagents run on a cheaper model (agents with their own frontmatter model
+#     keep it — frontmatter outranks the env var);
+#   - a PreToolUse hook (scripts/git-guard.sh) that enforces the git-safety rules
+#     deterministically: bulk staging is denied, hard-to-undo git asks first;
+#   - four user-invocable skills: plan-file and review-loop (the plan-file
+#     discipline and the bounded adversarial review, extracted from the
+#     orchestrator prompt so a plain session can opt into them), plus
+#     codex-delegate and advisor-fable; and the helper scripts.
+# `mico uninstall` removes the links and the hook and restores the managed
+# settings keys from the backup taken at install.
+#
+# `mico orch` is the original plan-only orchestrator launcher: Claude runs as
+# an orchestrator whose Edit/Write are blocked by a hook, and delegates to the
+# specialists. It costs several times a plain session on ordinary tasks (see
+# README), so it is opt-in — reach for it when edits must be physically blocked
+# or a plan file and bounded review loop are worth their price.
 #
 # Setup:  mico install | uninstall | update | setup
-#   install    symlink agents/skills/scripts into ~/.claude and mico into ~/.local/bin
-#              (existing real files are backed up as <name>.pre-mico)
-#   uninstall  remove the symlinks, restore backups
+#   install    symlink agents/skills/scripts into ~/.claude and mico into ~/.local/bin,
+#              merge the managed settings into ~/.claude/settings.json (backed up
+#              once under ~/.claude/backups/mico), install the git guard hook
+#   uninstall  remove the symlinks and hook, restore the managed settings keys
 #   update     git pull the repo (symlinks pick up changes automatically)
 #   setup      run headless Claude in the CURRENT project to align its docs with
-#              mico conventions (CLAUDE.md plan-distinction note + .gitignore .mico/)
-#              and report other-doc conflicts; optionally set up code-review-graph;
-#              then recommend installing jq if missing
+#              the orchestrator's conventions (CLAUDE.md plan-distinction note +
+#              .gitignore .mico/); only relevant if you use `mico orch` there
 #
-# Usage: mico [--orch fable|opus|sonnet] [--no-1m] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort minimal|low|medium|high|xhigh] [claude args...]
+# Orchestrator: mico orch [--orch fable|opus|sonnet] [--no-1m] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort minimal|low|medium|high|xhigh] [claude args...]
 #   --orch          orchestrator model (default: opus). Runs with a 1M context
 #                   window by default — the `[1m]` suffix is appended internally
 #                   (so the default becomes `--model opus[1m]`); `--orch` itself
@@ -25,16 +45,16 @@
 #   --no-1m         drop the orchestrator to the 200k context window instead
 #                   of the 1M default.
 #   --advisor       advisor AGENT model (default: opus; `fable` raises it to
-#                   Fable 5). The advisor is a read-only subagent consulted at
+#                   Fable). The advisor is a read-only subagent consulted at
 #                   decision points — mico does not use Claude Code's built-in
 #                   server-side advisor (blocking, uncached full-transcript
 #                   reread, inherited by every subagent).
 #   --impl          implementation backend (default: sonnet -> implementer agent
-#                   on Sonnet 5; opus -> implementer agent forced to Opus;
+#                   on Sonnet; opus -> implementer agent forced to Opus;
 #                   codex -> codex-delegate skill, build mode)
 #   --codex-effort  codex reasoning effort, exported as CODEX_DELEGATE_EFFORT
 #                   (default: xhigh when --impl codex; script default otherwise)
-# mico also exports CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1 by default so
+# mico orch also exports CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1 by default so
 # specialist subagents cannot re-delegate; export it yourself first to override.
 # Unrecognized args are passed through to claude (e.g. --effort, --continue).
 set -uo pipefail
@@ -67,8 +87,11 @@ links() {
 $HOME/.local/bin/mico|$repo/bin/mico
 $HOME/.claude/scripts/codex-delegate.sh|$repo/scripts/codex-delegate.sh
 $HOME/.claude/scripts/orchestrator-guard.sh|$repo/scripts/orchestrator-guard.sh
+$HOME/.claude/scripts/git-guard.sh|$repo/scripts/git-guard.sh
 $HOME/.claude/skills/codex-delegate|$repo/skills/codex-delegate
 $HOME/.claude/skills/advisor-fable|$repo/skills/advisor-fable
+$HOME/.claude/skills/plan-file|$repo/skills/plan-file
+$HOME/.claude/skills/review-loop|$repo/skills/review-loop
 $HOME/.claude/agents/advisor.md|$repo/agents/advisor.md
 $HOME/.claude/agents/implementer.md|$repo/agents/implementer.md
 $HOME/.claude/agents/web-researcher.md|$repo/agents/web-researcher.md
@@ -82,6 +105,87 @@ EOF
 # anything left there (a skills/<name>.pre-mico dir shows up as a real skill).
 backup_dir="$HOME/.claude/backups/mico"
 
+# ---- managed settings ------------------------------------------------------
+# The keys mico owns in ~/.claude/settings.json. install merges them in (after
+# taking a one-time backup of the whole file), uninstall puts each key back to
+# what the backup holds — or deletes it if the backup lacks it — and removes the
+# git guard hook entry. Only these keys are touched; everything else the user
+# keeps in the file is left alone. Needs jq; without it install prints what to
+# add by hand and uninstall leaves the file untouched.
+settings_file="$HOME/.claude/settings.json"
+settings_backup="$backup_dir/settings.json"
+mico_model="opus[1m]"
+mico_autocompact=300000
+mico_subagent_model="sonnet"
+
+settings_apply() {
+  local guard="$repo/scripts/git-guard.sh"
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "mico: jq not found — settings not merged. Add to $settings_file by hand:" >&2
+    echo "        \"model\": \"$mico_model\", \"autoCompactWindow\": $mico_autocompact," >&2
+    echo "        \"env\": {\"CLAUDE_CODE_SUBAGENT_MODEL\": \"$mico_subagent_model\"}," >&2
+    echo "        hooks.PreToolUse: {\"matcher\": \"Bash\", \"hooks\": [{\"type\": \"command\", \"command\": \"$guard\", \"timeout\": 10}]}" >&2
+    return 0
+  fi
+  mkdir -p "$(dirname "$settings_file")"
+  [ -f "$settings_file" ] || printf '{}\n' >"$settings_file"
+  if ! jq -e . "$settings_file" >/dev/null 2>&1; then
+    echo "mico: $settings_file is not valid JSON — settings not merged" >&2
+    return 0
+  fi
+  if [ ! -e "$settings_backup" ]; then
+    mkdir -p "$backup_dir"
+    cp "$settings_file" "$settings_backup"
+    echo "mico: backed up $settings_file -> $settings_backup"
+  fi
+  local tmp; tmp=$(mktemp -t mico-settings.XXXXXX)
+  if jq --arg model "$mico_model" --argjson win "$mico_autocompact" --arg sub "$mico_subagent_model" --arg guard "$guard" '
+      .model = $model
+      | .autoCompactWindow = $win
+      | .env = ((.env // {}) + {CLAUDE_CODE_SUBAGENT_MODEL: $sub})
+      | .hooks = (.hooks // {})
+      | .hooks.PreToolUse = (
+          ((.hooks.PreToolUse // []) | map(select(((.hooks // []) | any(.command == $guard)) | not)))
+          + [{matcher: "Bash", hooks: [{type: "command", command: $guard, timeout: 10}]}])
+    ' "$settings_file" >"$tmp"; then
+    mv "$tmp" "$settings_file"
+    echo "mico: settings  model=$mico_model autoCompactWindow=$mico_autocompact CLAUDE_CODE_SUBAGENT_MODEL=$mico_subagent_model git-guard hook"
+  else
+    rm -f "$tmp"
+    echo "mico: failed to merge settings into $settings_file (left unchanged)" >&2
+  fi
+}
+
+settings_restore() {
+  local guard="$repo/scripts/git-guard.sh"
+  command -v jq >/dev/null 2>&1 || { echo "mico: jq not found — $settings_file left unchanged" >&2; return 0; }
+  [ -f "$settings_file" ] || return 0
+  local backup="$settings_backup"
+  [ -e "$backup" ] || backup=/dev/null   # no backup: managed keys are simply removed
+  local tmp; tmp=$(mktemp -t mico-settings.XXXXXX)
+  if jq --slurpfile b <(if [ "$backup" = /dev/null ]; then echo '{}'; else cat "$backup"; fi) --arg guard "$guard" '
+      ($b[0] // {}) as $prev
+      | (if $prev.model != null then .model = $prev.model else del(.model) end)
+      | (if $prev.autoCompactWindow != null then .autoCompactWindow = $prev.autoCompactWindow else del(.autoCompactWindow) end)
+      | (if ($prev.env.CLAUDE_CODE_SUBAGENT_MODEL // null) != null
+           then .env.CLAUDE_CODE_SUBAGENT_MODEL = $prev.env.CLAUDE_CODE_SUBAGENT_MODEL
+           else del(.env.CLAUDE_CODE_SUBAGENT_MODEL) end)
+      | (if .env == {} then del(.env) else . end)
+      | (if .hooks.PreToolUse != null then
+           .hooks.PreToolUse |= map(select(((.hooks // []) | any(.command == $guard)) | not))
+           | (if .hooks.PreToolUse == [] then del(.hooks.PreToolUse) else . end)
+         else . end)
+      | (if .hooks == {} then del(.hooks) else . end)
+    ' "$settings_file" >"$tmp"; then
+    mv "$tmp" "$settings_file"
+    echo "mico: settings  managed keys restored from ${settings_backup} (git-guard hook removed)"
+    rm -f "$settings_backup"
+  else
+    rm -f "$tmp"
+    echo "mico: failed to restore settings in $settings_file (left unchanged)" >&2
+  fi
+}
+
 cmd_install() {
   links | while IFS='|' read -r dst src; do
     mkdir -p "$(dirname "$dst")"
@@ -93,6 +197,7 @@ cmd_install() {
     ln -sfn "$src" "$dst"
     echo "mico: linked   $dst"
   done
+  settings_apply
   echo "mico: install complete (repo: $repo)"
 }
 
@@ -107,6 +212,7 @@ cmd_uninstall() {
       echo "mico: restored $dst"
     fi
   done
+  settings_restore
   rmdir "$backup_dir" 2>/dev/null
   echo "mico: uninstall complete"
 }
@@ -217,25 +323,37 @@ cmd_setup() {
 
 usage() {
   cat <<'EOF'
-mico — launch Claude as a plan-only orchestrator.
-Implementation/research/investigation are delegated to specialist subagents.
+mico — a setup utility for Claude Code, plus an optional plan-only orchestrator.
 
 Usage:
-  mico [--orch fable|opus|sonnet] [--no-1m] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort LEVEL] [claude args...]
   mico install | uninstall | update | setup
+  mico orch [--orch fable|opus|sonnet] [--no-1m] [--advisor opus|fable] [--impl sonnet|opus|codex] [--codex-effort LEVEL] [claude args...]
   mico --help | -h
 
 Setup commands:
   install     symlink agents/skills/scripts into ~/.claude and mico into ~/.local/bin
-              (existing real files are backed up under ~/.claude/backups/mico)
-  uninstall   remove the symlinks, restore backups
+              (existing real files are backed up under ~/.claude/backups/mico);
+              merge the managed settings into ~/.claude/settings.json — model
+              opus[1m], autoCompactWindow 300000, env CLAUDE_CODE_SUBAGENT_MODEL=sonnet
+              — and install the git guard hook (scripts/git-guard.sh: bulk staging
+              denied, hard-to-undo git asks first). The settings file is backed
+              up once before the first merge. Re-running is idempotent.
+  uninstall   remove the symlinks and the hook; put the managed settings keys back
+              to what the backup holds; restore backed-up files
   update      git pull the repo (symlinks pick up changes automatically)
   setup       run headless Claude in the CURRENT project folder to align its docs
               with mico conventions (CLAUDE.md plan-distinction note + .gitignore
               .mico/) and report other-doc conflicts; optionally set up
-              code-review-graph; recommends jq if it is missing
+              code-review-graph; recommends jq if it is missing. Only relevant to
+              projects where you use `mico orch`.
 
-Launcher options:
+Orchestrator (`mico orch`) — Claude runs as a plan-only orchestrator: a hook blocks
+its Edit/Write, and it delegates to the specialist subagents. Measured on an
+ordinary 3-file task it cost 3-4.6x a plain session and took 4-5x longer for the
+same result, so use it where edits must be physically blocked or a plan file and
+a bounded review loop are worth that price.
+
+Orchestrator options:
   --orch fable|opus|sonnet
               orchestrator model (default: opus). Runs with a 1M context
               window by default — the [1m] suffix is appended internally, so
@@ -265,27 +383,30 @@ Launcher options:
 Any other arguments are passed through to claude (e.g. --continue, --resume, --effort).
 
 Notes:
-  mico exports CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1 (default) so the
+  mico orch exports CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1 (default) so the
   orchestrator's specialist subagents cannot themselves re-delegate. `mico
   setup` inherits the variable too, but spawns no subagents anyway — it runs
   with a fixed read/write toolset and no Agent tool, so the cap has no
   observable effect there. Export the variable yourself before launching
   mico to override the default.
 
-  mico also installs an observe-only Stop hook that records turns ending on
+  mico orch also installs an observe-only Stop hook that records turns ending on
   an announced-but-unperformed action ("I'll run the review" with no tool
   call following) to .mico/intent-turn-log.jsonl. It never blocks.
 EOF
 }
 
 case "${1:-}" in
-  install)   cmd_install;   exit 0 ;;
-  uninstall) cmd_uninstall; exit 0 ;;
-  update)    cmd_update;    exit $? ;;
-  setup)     cmd_setup;     exit $? ;;
+  install)      cmd_install;   exit 0 ;;
+  uninstall)    cmd_uninstall; exit 0 ;;
+  update)       cmd_update;    exit $? ;;
+  setup)        cmd_setup;     exit $? ;;
+  orch)         shift ;;   # fall through to the orchestrator launcher below
+  ""|-h|--help) usage; exit 0 ;;
+  *) echo "mico: unknown command '$1' — the orchestrator launcher is now 'mico orch ...'" >&2; usage >&2; exit 2 ;;
 esac
 
-# ---- launcher ---------------------------------------------------------------
+# ---- orchestrator launcher (mico orch) ---------------------------------------
 
 orch=opus
 advisor=opus
@@ -385,9 +506,10 @@ EOF
 esac
 
 # Advisor agent model. The frontmatter default is Opus at 1M (opus[1m]), so only
-# fable needs a session override (same mechanism as --impl opus). Note the
-# override costs the 1M window: an Agent-tool `model` value replaces the
-# frontmatter value outright, so `model: "fable"` runs the advisor at 200k.
+# fable needs a session override (same mechanism as --impl opus). An Agent-tool
+# `model` override inherits the session's context-window suffix (measured on
+# 2.1.263), so under the default opus[1m] session the advisor keeps the large
+# window; only --no-1m sessions drop it to 200k.
 if [ "$advisor" = fable ]; then
   if [ "$prompt_file" = "$base_prompt" ]; then
     prompt_file=$(mktemp -t mico-prompt.XXXXXX)

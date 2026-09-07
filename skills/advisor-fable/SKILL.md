@@ -1,6 +1,6 @@
 ---
 name: advisor-fable
-description: Run one `advisor` agent consultation on Fable 5 instead of the default Opus. User-invocable only — the user types `/advisor-fable [question]` when they want the heavier model for a specific design/approach decision; the orchestrator never escalates to Fable on its own.
+description: Run one `advisor` agent consultation on Fable instead of the default Opus. User-invocable only — the user types `/advisor-fable [question]` when they want the heavier model for a specific design/approach decision; Claude never escalates to Fable on its own.
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -8,12 +8,13 @@ disable-model-invocation: true
 # Fable advisor (one consultation)
 
 The `advisor` agent normally runs on `opus[1m]` (its frontmatter default). This skill
-is the **explicit, per-consultation** escalation to Fable 5 — invoked by the user, not
-by you. It changes the advisor's MODEL ONLY; when an advisor consultation is
-appropriate is unchanged (see "Advisor agent" in the orchestrator prompt).
+is the **explicit, per-consultation** escalation to Fable (the `fable` alias, currently
+Fable 5.1) — invoked by the user, not by you. It changes the advisor's MODEL ONLY; when
+an advisor consultation is appropriate is unchanged: before activating a plan, when
+choosing between approaches, or when work is stuck — not for post-hoc diff review.
 
-For a session where *every* advisor call should use Fable, the launcher flag
-`mico --advisor fable` already does that — no skill needed.
+For an orchestrator session where *every* advisor call should use Fable, the launcher
+flag `mico orch --advisor fable` already does that — no skill needed.
 
 ## What to do
 
@@ -37,11 +38,13 @@ For a session where *every* advisor call should use Fable, the launcher flag
    re-spec the delegation, or bring the disagreement back to the user. A verdict you
    report but ignore is a wasted consultation.
 
-## Context tradeoff (state it if it matters)
+## Context window (only matters in a 200k session)
 
-The Agent tool's `model` parameter accepts only bare aliases, and the value it
-receives **replaces** the agent's frontmatter `opus[1m]` outright. So a Fable
-consultation runs with a 200k context window instead of 1M. Scope the brief
-accordingly — a plan plus a handful of files is fine; a whole-repo sweep is not. If
-the question genuinely needs the 1M window more than it needs Fable, say so and let
-the user decide between the two.
+The Agent tool's `model` parameter takes a bare alias, and the subagent inherits the
+main session's context-window suffix: measured on Claude Code 2.1.263, an override of
+`"opus"` dispatched as `claude-opus-5[1m]` when the main session ran on `opus[1m]` and
+as plain `claude-opus-5` when the main session ran on bare `opus`. So under the default
+`opus[1m]` session the Fable consultation keeps the large window. Only when the session
+itself is on a 200k model (`--no-1m`, or a bare alias) does the consultation run at
+200k — scope the brief accordingly then, and say so if the question needs the window
+more than it needs Fable.
