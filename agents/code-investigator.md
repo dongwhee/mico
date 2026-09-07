@@ -35,4 +35,4 @@ A re-check names a previous pass and the scope to judge — usually the hunks ch
 - **new-attributable** — new, and caused by the work under review; name the hunk, or the section when the brief named one instead. An untouched line counts here when a nearby rewrite is what made it wrong — a cross-reference now pointing at replaced text, a rule contradicted by a new one. Line numbers alone cannot show that; you have the context.
 - **new-unattributable** — new, and pre-existing in the codebase rather than caused by this work. Report it, say so, and don't treat it as a defect of the work. A defect this work introduced but an earlier pass missed is **new-attributable**, even if the hunks since that pass did not touch it.
 
-Closed findings go in your summary as a count. Assign labels deliberately, and say when you are unsure which applies.
+Closed findings go in your summary as a count. Assign labels deliberately, and say when you are unsure which applies — the parent treats a finding you could not place as `new-attributable`.

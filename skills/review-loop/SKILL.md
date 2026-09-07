@@ -12,18 +12,15 @@ whose goal it is. If empty, use the goal of the work just completed in this sess
 
 An adversarial pass checks the work before it is reported complete. The reviewer
 **advises**; the verdict is yours. The loop is bounded so it terminates: three passes at
-most, re-checks scoped to what changed, and a stopping rule that does not depend on
-the reviewer's framing. On one measured 3-file task a single pass cost about as much
+most, re-checks scoped to what changed, and a stopping rule that the reviewer's
+framing alone cannot extend. On one measured 3-file task a single pass cost about as much
 as the implementation itself, which is why this is a skill you invoke rather than a
 step that always runs.
 
 ## Skip set
 
-Skip the pass for trivial non-code changes: project documentation and plan files,
-judged on the change as a whole — one code edit among four doc edits is not in it.
-Renames are not in it either: moving a symbol moves call sites. Files that define an
-agent's or a harness's behavior (prompts, agent definitions, hooks) are never in it,
-however small the edit. When you skip, say so and why.
+Skip the pass for changes that are documentation only — READMEs, docs, plan files — judged on the change as a whole, so one code edit among four doc edits is not in it. Renames are not in it either: moving a symbol moves call sites. Files that define agent or harness behavior are never in it, however small the edit: `prompts/`, `agents/`, `skills/`, hook scripts under `scripts/`, and any `CLAUDE.md`; that carve-out wins over every other entry.
+When you skip, say so and why.
 
 ## Checkpoint before every pass
 
@@ -74,18 +71,13 @@ exempt paths, since the guard blocks your own code edits there.
 Scoped to what the brief names — the hunks changed since the previous checkpoint, or
 the file and section when no diff can show the change — not the closed-findings list,
 which misses defects the fix introduced, and not the whole artifact, which never
-terminates. Name the previous checkpoint and require the three labels.
+terminates. Name the previous checkpoint and require the three labels. The reviewer is a fresh agent on every pass, so the brief hands over the previous pass's open findings and the ones you closed; without them it cannot assign `prior-open` or return a closed count.
 
 ## When to stop
 
-A pass ends the loop when none of its findings is both *blocking* and `prior-open` or
-`new-attributable`; the rest goes to the user with your judgment on each. A blocking
-finding with either label earns one more fix and re-check while the count is under the
-backstop. Pass 1 carries no labels — triage alone decides. **Three passes total** is the
-backstop; after that everything remaining goes to the user whatever its label. A
-blocking `new-unattributable` finding is pre-existing work: to the user, never a
-re-check — this wins over triage. Fixes the loop asked for never need a pass of their
-own, including ones applied to final-pass residuals after the backstop.
+Every re-check is a pass and counts toward the backstop. A pass ends the loop when none of its findings is both *blocking* and `prior-open` or `new-attributable`; the rest goes to the user with your judgment on each. A blocking finding with either label earns one more fix and re-check while the pass count is under the backstop. Pass 1 carries no labels — triage alone decides. A finding the reviewer left unlabeled or could not place counts as `new-attributable`. Three passes total is the backstop; after the third pass nothing is re-checked: a blocking finding you can fix unambiguously is fixed and reported to the user as fixed but unreviewed, anything else is reported open, and every other finding goes to the user whatever its label. A blocking `new-unattributable` finding is pre-existing work: report it to the user, neither fixed in this loop nor re-checked — this wins over triage.
+Fixes the loop asked for never need a pass of their own, including ones applied to
+final-pass residuals after the backstop.
 
 ## Record the outcome
 

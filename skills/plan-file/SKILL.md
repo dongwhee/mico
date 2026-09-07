@@ -72,10 +72,14 @@ created: <YYYY-MM-DD>
    belongs in Notes, in a commit body, or in your message to the user. The plan is
    re-read before every edit, so a plan that grows into a transcript is paid for on
    every write.
-4. **Close.** Before `status: done`, the goal should have gone through a review — the
-   `/review-loop` skill is the bounded form of that — unless the change is docs-only,
-   and the Log should say which it was. Then set `status: done` and move the file to
-   `archive/` with plain `mv` (`git mv` fails on a gitignored path).
+4. **Close.** Before `status: done`, the goal should have gone through a review unless
+   the change is in the review skip set: documentation only — READMEs, docs, plan files
+   — and never files that define agent or harness behavior (`prompts/`, `agents/`,
+   `skills/`, hook scripts, any `CLAUDE.md`). The bounded form is the `/review-loop`
+   skill, which only the user can start: when a plan reaches this point, ask the user
+   to run it, or record the skip and its reason. The Log says which happened. Then set
+   `status: done` and move the file to `archive/` with plain `mv` (`git mv` fails on a
+   gitignored path).
 
 ## Rules
 
