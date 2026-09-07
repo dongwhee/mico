@@ -34,9 +34,13 @@ flag `mico orch --advisor fable` already does that — no skill needed.
    default, which defeats the whole invocation. One agent per invocation: do not fan
    out several Fable advisors over the same question.
 4. **Report and act.** Relay the verdict (proceed / proceed-with-changes / rethink),
-   its decisive reason, and the top risks. Then act on it — update the plan file,
-   re-spec the delegation, or bring the disagreement back to the user. A verdict you
-   report but ignore is a wasted consultation.
+   its decisive reason, and **every** risk the advisor raised, each with the
+   replacement wording it gave — the advisor was told not to drop minor risks, so
+   don't drop them here either. If the user has to decide before anything is applied,
+   put the full list somewhere that outlives the turn: the plan's Notes, or
+   `.mico/reports/advisor-<topic>.md`. Then act on it — update the plan file, re-spec
+   the delegation, or bring the disagreement back to the user. A verdict you report
+   but ignore is a wasted consultation, and a risk you summarized away is lost.
 
 ## Context window (only matters in a 200k session)
 

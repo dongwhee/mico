@@ -73,13 +73,16 @@ created: <YYYY-MM-DD>
    re-read before every edit, so a plan that grows into a transcript is paid for on
    every write.
 4. **Close.** Before `status: done`, the goal should have gone through a review unless
-   the change is in the review skip set: documentation only — READMEs, docs, plan files
-   — and never files that define agent or harness behavior (`prompts/`, `agents/`,
-   `skills/`, hook scripts, any `CLAUDE.md`). The bounded form is the `/review-loop`
-   skill, which only the user can start: when a plan reaches this point, ask the user
-   to run it, or record the skip and its reason. The Log says which happened. Then set
-   `status: done` and move the file to `archive/` with plain `mv` (`git mv` fails on a
-   gitignored path).
+   the change is in the review skip set — defined once, in the `/review-loop` skill's
+   "Skip set" (`~/.claude/skills/review-loop/SKILL.md`): documentation only, judged on
+   the change as a whole, and never a file that defines agent or harness behavior. The
+   bounded form is the `/review-loop` skill, which only the user can start: when a plan
+   reaches this point, ask the user to run it — unless this session's own instructions
+   already define the review (a `mico orch` session's "Code review" section), in which
+   case run that — or record the skip and its reason. The Log says which happened. A
+   review that ended with a blocking finding still open leaves the plan `active` and the
+   finding in Notes until the user decides. Then set `status: done` and move the file to
+   `archive/` with plain `mv` (`git mv` fails on a gitignored path).
 
 ## Rules
 
