@@ -135,8 +135,23 @@ intent_pattern="겠습니다|할게요|하겠어요|I'll|I will|Let me|Next,? I|
 # The 면(...) alternative also accepts a following comma or common sentence
 # punctuation, not just whitespace/end-of-string, so "없으면, ..." still
 # counts as a conditional even though the comma sits between 면 and the next
-# clause.
-decision_pattern='\?|까요|면([[:space:],.、·)]|$)|(^|[^a-zA-Z])(if|once|whether|confirm|approve)([^a-zA-Z]|$)'
+# clause. The ideographic comma (、) and middle dot (·) are pulled out of the
+# bracket class into their own alternatives rather than living inside
+# [[:space:],.、·)] — a bracket class holding multibyte characters degrades to
+# matching their constituent raw bytes under LC_ALL=C, which would make the
+# class match any lone byte of E3/80/81 (、) or C2/B7 (·), including bytes
+# that only coincidentally overlap a *different* multibyte character, such as
+# a NBSP (C2 A0, sharing 、's leading C2 with ·'s encoding). Keeping the
+# bracket class itself ASCII-only and moving 、/· to alternations (each
+# matched as one atomic byte sequence, not a set of individual bytes) removes
+# that coincidental cross-character matching. A literal NBSP alternative is
+# added explicitly for the same reason [[:space:]] is not enough on its own:
+# under en_US.UTF-8, [[:space:]] already classifies NBSP as whitespace, but
+# under LC_ALL=C — a single-byte locale — a NBSP is two raw bytes that no
+# single-character POSIX class can match, so without an explicit two-byte
+# alternative here 면+NBSP would match under UTF-8 but not under C, the same
+# kind of locale-dependent inconsistency this whole fix is about.
+decision_pattern='\?|까요|면([[:space:],.)]|、|·|'$'\xc2\xa0''|$)|(^|[^a-zA-Z])(if|once|whether|confirm|approve)([^a-zA-Z]|$)'
 
 # The confirm/approve/if/once/whether words above should match regardless of
 # case ("Confirm the plan..." / "Once done..."), but nocasematch is scoped to
