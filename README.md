@@ -4,7 +4,7 @@
 
 **mico configures Claude Code and then gets out of the way.** `mico install`
 puts one opinionated, measured configuration into `~/.claude` — six specialist
-subagents, three cost-related global settings, four user-invocable skills, and a
+subagents, three cost-related global settings, five user-invocable skills, and a
 deterministic git-safety hook — and from then on you work the ordinary way: run
 `claude`. There is no wrapper, no daemon, and nothing to launch.
 
@@ -37,6 +37,7 @@ Symbolic links:
 | `~/.claude/skills/plan-file` | `skills/plan-file/` |
 | `~/.claude/skills/review-loop` | `skills/review-loop/` |
 | `~/.claude/skills/advisor-fable` | `skills/advisor-fable/` |
+| `~/.claude/skills/nightshift` | `skills/nightshift/` |
 | `~/.claude/skills/codex-delegate` | `skills/codex-delegate/` |
 | `~/.claude/scripts/git-guard.sh` | `scripts/git-guard.sh` |
 | `~/.claude/scripts/orchestrator-guard.sh` | `scripts/orchestrator-guard.sh` |
@@ -65,7 +66,7 @@ judges that worthwhile; their descriptions say when that is and when it is not,
 and deliberately carry no "use proactively" boosters — measured, subagent-heavy
 sessions were the largest single contributor to usage.
 
-### Four user-invocable skills
+### Five user-invocable skills
 
 Each runs only when you type its slash command. Claude cannot trigger any of them
 on its own (`disable-model-invocation`), so their cost never creeps in unasked:
@@ -81,6 +82,12 @@ on its own (`disable-model-invocation`), so their cost never creeps in unasked:
 - **`/advisor-fable [question]`** — one `advisor` consultation on Fable instead of
   the default Opus: an independent second opinion from a fresh context, for a
   design or approach decision *before* the work — not for reviewing a diff after it.
+- **`/nightshift [topic]`** — the pre-flight for an unattended overnight run: read
+  what the plan has left, decide with you every question the run would otherwise
+  stop to ask, write the answers and the run's contract (branch, commit policy,
+  forbidden commands, retry and turn bounds) into the plan file, and hand back the
+  one `/goal` line to paste before you leave. The night itself is Claude Code's
+  built-in `/goal`, not a mico loop.
 - **`/codex-delegate`** — hand a self-contained unit of work (implement + build +
   test, or a review) to the Codex CLI in its own sandbox, so only a small verdict
   file comes back instead of the raw build logs. Requires the `codex` CLI.

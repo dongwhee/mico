@@ -3,7 +3,7 @@
 [English](README.md)
 
 **mico는 Claude Code를 설정해 두고 물러난다.** `mico install`은 측정을 근거로 고른
-한 가지 구성 — 전문 서브에이전트 6개, 비용 관련 전역 설정 3개, 사용자 호출 스킬 4개,
+한 가지 구성 — 전문 서브에이전트 6개, 비용 관련 전역 설정 3개, 사용자 호출 스킬 5개,
 결정적 git 안전 훅 — 을 `~/.claude`에 설치한다. 그 다음부터는 평소대로 `claude`를
 실행해서 일하면 된다. 감싸는 래퍼도, 상주 프로세스도, 따로 띄울 것도 없다.
 
@@ -35,6 +35,7 @@ claude          # 설정은 전역이다. 그냥 쓰면 된다
 | `~/.claude/skills/plan-file` | `skills/plan-file/` |
 | `~/.claude/skills/review-loop` | `skills/review-loop/` |
 | `~/.claude/skills/advisor-fable` | `skills/advisor-fable/` |
+| `~/.claude/skills/nightshift` | `skills/nightshift/` |
 | `~/.claude/skills/codex-delegate` | `skills/codex-delegate/` |
 | `~/.claude/scripts/git-guard.sh` | `scripts/git-guard.sh` |
 | `~/.claude/scripts/orchestrator-guard.sh` | `scripts/orchestrator-guard.sh` |
@@ -63,7 +64,7 @@ claude          # 설정은 전역이다. 그냥 쓰면 된다
 문구는 의도적으로 넣지 않았다 — 측정에서 서브에이전트가 많은 세션이 사용량의 가장 큰
 단일 요인이었다.
 
-### 사용자 호출 스킬 4개
+### 사용자 호출 스킬 5개
 
 모두 슬래시 명령을 직접 입력해야 실행된다. Claude가 스스로 호출할 수 없으므로
 (`disable-model-invocation`), 부르지 않는 한 비용이 슬그머니 들어오지 않는다:
@@ -78,6 +79,10 @@ claude          # 설정은 전역이다. 그냥 쓰면 된다
 - **`/advisor-fable [질문]`** — `advisor` 상담 한 건을 기본 Opus 대신 Fable로
   실행한다. 새 컨텍스트에서 나오는 독립적인 second opinion이며, 작업 *전*의
   설계·접근 결정용이다 — 끝난 diff를 사후 검토하는 용도가 아니다.
+- **`/nightshift [topic]`** — 무인 야간 실행을 위한 사전 점검: 플랜에 남은 일을 읽고,
+  실행 중에 물어보게 될 결정들을 퇴근 전에 함께 확정하고, 그 답과 실행 계약(브랜치,
+  커밋 정책, 금지 명령, 재시도·턴 상한)을 플랜 파일에 적은 뒤, 붙여넣을 `/goal` 한
+  줄을 돌려준다. 밤을 실제로 도는 것은 mico의 루프가 아니라 Claude Code 내장 `/goal`이다.
 - **`/codex-delegate`** — 자족적인 작업 단위(구현+빌드+테스트, 또는 리뷰)를 Codex
   CLI의 샌드박스에 넘겨서, 원시 빌드 로그 대신 작은 판정 파일만 돌려받는다.
   `codex` CLI가 필요하다.

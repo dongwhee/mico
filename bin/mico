@@ -10,10 +10,10 @@
 #     keep it — frontmatter outranks the env var);
 #   - a PreToolUse hook (scripts/git-guard.sh) that enforces the git-safety rules
 #     deterministically: bulk staging is denied, hard-to-undo git asks first;
-#   - four user-invocable skills: plan-file and review-loop (the plan-file
+#   - five user-invocable skills: plan-file and review-loop (the plan-file
 #     discipline and the bounded adversarial review, extracted from the
 #     orchestrator prompt so a plain session can opt into them), plus
-#     codex-delegate and advisor-fable; and the helper scripts.
+#     codex-delegate, advisor-fable and nightshift; and the helper scripts.
 # `mico uninstall` removes the links and the hook and restores the managed
 # settings keys from the backup taken at install.
 #
@@ -92,6 +92,7 @@ $HOME/.claude/skills/codex-delegate|$repo/skills/codex-delegate
 $HOME/.claude/skills/advisor-fable|$repo/skills/advisor-fable
 $HOME/.claude/skills/plan-file|$repo/skills/plan-file
 $HOME/.claude/skills/review-loop|$repo/skills/review-loop
+$HOME/.claude/skills/nightshift|$repo/skills/nightshift
 $HOME/.claude/agents/advisor.md|$repo/agents/advisor.md
 $HOME/.claude/agents/implementer.md|$repo/agents/implementer.md
 $HOME/.claude/agents/web-researcher.md|$repo/agents/web-researcher.md
