@@ -1,6 +1,6 @@
 ---
 name: advisor-fable
-description: Run one `advisor` agent consultation on Fable instead of the default Opus. User-invocable only — the user types `/advisor-fable [question]` when they want the heavier model for a specific design/approach decision; Claude never escalates to Fable on its own.
+description: Run one `advisor` agent consultation on Fable instead of the default Opus. User-invocable only — the user types `/advisor-fable [question]` when they want a Fable second opinion in a fresh, independent context for a specific design/approach decision; Claude never escalates to Fable on its own (it may recommend this skill per the global CLAUDE.md).
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -8,10 +8,14 @@ disable-model-invocation: true
 # Fable advisor (one consultation)
 
 The `advisor` agent normally runs on `opus[1m]` (its frontmatter default). This skill
-is the **explicit, per-consultation** escalation to Fable (the `fable` alias, currently
-Fable 5.1) — invoked by the user, not by you. It changes the advisor's MODEL ONLY; when
-an advisor consultation is appropriate is unchanged: before activating a plan, when
-choosing between approaches, or when work is stuck — not for post-hoc diff review.
+is the **explicit, per-consultation** switch to Fable (the `fable` alias, currently
+Fable 5.1) — invoked by the user, not by you. When the main session itself runs on
+Fable, this is not a heavier model: its value is an independent second opinion from a
+fresh context, at the same capability as the session. It changes the advisor's MODEL
+ONLY; when an advisor consultation is appropriate is unchanged: before activating a
+plan, when choosing between approaches, or when work is stuck — not for post-hoc diff
+review. You may recommend this skill to the user at those points (see the global
+CLAUDE.md, "Second opinions"); you never invoke it yourself.
 
 For an orchestrator session where *every* advisor call should use Fable, the launcher
 flag `mico orch --advisor fable` already does that — no skill needed.
